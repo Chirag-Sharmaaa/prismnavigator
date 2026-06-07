@@ -2,6 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
 import { ChevronDown, Search as SearchIcon, AlertTriangle, X } from "lucide-react";
 import { supabase, CATEGORIES, type Category } from "@/lib/supabase";
+import { useAuth, canViewCategory } from "@/lib/auth";
 import type { Project, YearlyStatus } from "@/lib/types";
 import { Layout } from "@/components/Layout";
 import { isYearOverdue, getCurrentFY, formatINR } from "@/lib/format";
@@ -55,6 +56,7 @@ function HomePage() {
       setLoading(false);
     })();
   }, []);
+  const { user, isGuest } = useAuth();
 
   const yearlyByProject = useMemo(() => {
     const m = new Map<string, YearlyStatus[]>();
@@ -65,9 +67,11 @@ function HomePage() {
     return m;
   }, [yearly]);
 
+  const visibleProjects = useMemo(() => projects.filter((p) => canViewCategory(user, isGuest, p.category)), [projects, user, isGuest]);
+
   const baseProjects = useMemo(
-    () => activeOnly ? projects.filter((p) => p.project_state === "Active") : projects,
-    [projects, activeOnly]
+    () => activeOnly ? visibleProjects.filter((p) => p.project_state === "Active") : visibleProjects,
+    [visibleProjects, activeOnly]
   );
 
   const actionRequiredIds = useMemo(() => {
@@ -168,7 +172,7 @@ function HomePage() {
   const searchResults = useMemo(() => {
     if (!search && filterCats.length === 0 && !filterState && !filterGrant && !filterReport) return [];
     const q = search.toLowerCase();
-    return projects.filter((p) => {
+    return visibleProjects.filter((p) => {
       if (q) {
         const hay = [p.title, p.pi_name, p.institute, p.e_file_number, p.eoffice_number, p.file_number, p.iris_id]
           .filter(Boolean).join(" ").toLowerCase();
@@ -182,7 +186,7 @@ function HomePage() {
       if (filterReport && !ys.some((y) => y.report_status === filterReport)) return false;
       return true;
     });
-  }, [search, filterCats, filterState, filterGrant, filterReport, projects, yearlyByProject]);
+  }, [search, filterCats, filterState, filterGrant, filterReport, visibleProjects, yearlyByProject]);
 
   const toggleCat = (c: Category) =>
     setFilterCats((fs) => (fs.includes(c) ? fs.filter((x) => x !== c) : [...fs, c]));
@@ -312,12 +316,17 @@ function HomePage() {
                 />
               </div>
               <div className="flex flex-wrap gap-2 mb-4">
-                {CATEGORIES.map((c) => (
-                  <button key={c} onClick={() => toggleCat(c)}
-                    className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
-                      filterCats.includes(c) ? "bg-[#2E75B6] text-white border-[#2E75B6]" : "bg-background border-border"
-                    }`}>{c}</button>
-                ))}
+                {CATEGORIES.map((c) => {
+                  const allowed = canViewCategory(user, isGuest, c);
+                  return (
+                    <button key={c}
+                      onClick={() => { if (!allowed) return; toggleCat(c); }}
+                      disabled={!allowed}
+                      className={`px-3 py-1 rounded-full text-xs font-medium border transition ${
+                        filterCats.includes(c) ? "bg-[#2E75B6] text-white border-[#2E75B6]" : "bg-background border-border"
+                      } ${!allowed ? 'opacity-40 cursor-not-allowed' : ''}`}>{c}</button>
+                  );
+                })}
                 <select value={filterState} onChange={(e) => setFilterState(e.target.value)}
                   className="px-2 py-1 rounded-md text-xs bg-background border border-border">
                   <option value="">All States</option>
