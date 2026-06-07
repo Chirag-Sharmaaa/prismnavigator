@@ -72,8 +72,12 @@ function AdminPage() {
         id: data.user.id, email, name, role,
         category_access: role === "manager" ? catAccess : null,
       });
+      const resetResult = await supabase.auth.resetPasswordForEmail(email);
+      if (resetResult.error) {
+        toast.error(`User created but password email failed: ${resetResult.error.message}`);
+      }
     }
-    toast.success(`Invitation sent to ${email}.`);
+    toast.success(`Invitation sent to ${email}. Please ask the user to confirm their email and set a password.`);
     setName(""); setEmail(""); setCatAccess([]);
     load();
   };
