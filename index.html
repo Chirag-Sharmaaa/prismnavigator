@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PRISM — ICMR Research Administration</title>
+    <meta name="description" content="PRISM — Project Records & Integrated Status Manager for ICMR" />
+  </head>
+  <body>
+    <script>
+      try {
+        const t = localStorage.getItem('prism-theme') || 'light';
+        document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
