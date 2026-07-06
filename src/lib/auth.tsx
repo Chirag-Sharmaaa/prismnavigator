@@ -11,6 +11,9 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   setGuest: (v: boolean) => void;
   refresh: () => Promise<void>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
+  verifyRecovery: (tokenHash: string, type: string) => Promise<{ error: string | null }>;
+  setPassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
@@ -82,9 +85,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuestState(v);
   };
 
+  const requestPasswordReset = async (email: string) => {
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=reset` : undefined;
+    const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
+    return { error: error?.message ?? null };
+  };
+
+  const verifyRecovery = async (tokenHash: string, type: string) => {
+    const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any });
+    if (!error) await loadUser();
+    return { error: error?.message ?? null };
+  };
+
+  const setPassword = async (password: string) => {
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) await loadUser();
+    return { error: error?.message ?? null };
+  };
+
   return (
     <AuthContext.Provider
-      value={{ user, loading, isGuest, signIn, signOut, setGuest, refresh: loadUser }}
+      value={{ user, loading, isGuest, signIn, signOut, setGuest, refresh: loadUser, requestPasswordReset, verifyRecovery, setPassword }}
     >
       {children}
     </AuthContext.Provider>
@@ -102,11 +123,12 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const isLogin = pathname === "/login";
+  const isPasswordSetup = pathname === "/set-password";
 
   React.useEffect(() => {
-    if (loading || isLogin) return;
+    if (loading || isLogin || isPasswordSetup) return;
     if (!user && !isGuest) navigate({ to: "/login" });
-  }, [loading, user, isGuest, isLogin, navigate]);
+  }, [loading, user, isGuest, isLogin, isPasswordSetup, navigate]);
 
   if (loading) {
     return (
@@ -115,7 +137,7 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
       </div>
     );
   }
-  if (!isLogin && !user && !isGuest) return null;
+  if (!isLogin && !isPasswordSetup && !user && !isGuest) return null;
   return <>{children}</>;
 }
 

@@ -94,6 +94,12 @@ function AdminPage() {
     load();
   };
 
+  const updateUserCategories = async (u: AppUser, nextCats: string[]) => {
+    if (u.role !== "manager") return;
+    await supabase.from("users").update({ category_access: nextCats }).eq("id", u.id);
+    load();
+  };
+
   if (!canAccessAdmin(user)) return <Layout><div>Unauthorized</div></Layout>;
 
   const filteredHistory = history.filter((h) => {
@@ -162,11 +168,30 @@ function AdminPage() {
                     </select>
                   </td>
                   <td className="p-2">
-                    <div className="flex flex-wrap gap-1">
-                      {(u.category_access || []).map((c) => (
-                        <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-[#D6E4F0] text-[#1E3A5F]">{c}</span>
-                      ))}
-                    </div>
+                    {u.role === "manager" ? (
+                      <div className="space-y-2">
+                        <div className="flex flex-wrap gap-1">
+                          {(u.category_access || []).map((c) => (
+                            <span key={c} className="text-[10px] px-1.5 py-0.5 rounded bg-[#D6E4F0] text-[#1E3A5F]">{c}</span>
+                          ))}
+                        </div>
+                        <div className="flex flex-wrap gap-1">
+                          {CATEGORIES.map((c) => (
+                            <label key={c} className="text-[10px] flex items-center gap-1">
+                              <input type="checkbox" checked={(u.category_access || []).includes(c)}
+                                onChange={(e) => {
+                                  const next = e.target.checked ? [...(u.category_access || []), c] : (u.category_access || []).filter((x) => x !== c);
+                                  updateUserCategories(u, next);
+                                }} /> {c}
+                            </label>
+                          ))}
+                          <button onClick={() => updateUserCategories(u, CATEGORIES)} className="text-[10px] text-[#2E75B6] hover:underline">All</button>
+                          <button onClick={() => updateUserCategories(u, [])} className="text-[10px] text-[#DC2626] hover:underline">Clear</button>
+                        </div>
+                      </div>
+                    ) : (
+                      <span className="text-[10px] text-muted-foreground">—</span>
+                    )}
                   </td>
                   <td className="p-2">
                     {u.role !== "admin" && u.role !== "scientist_e" && (

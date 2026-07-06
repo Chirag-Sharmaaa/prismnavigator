@@ -6,7 +6,7 @@ import { Layout } from "@/components/Layout";
 import { useAuth, canEdit, canDelete, canComment } from "@/lib/auth";
 import { formatDate, formatINR, isYearOverdue, getCurrentFY, getFYForYear } from "@/lib/format";
 import { StateBadge } from "./category.$slug";
-import { Edit2, Save, Trash2, Upload, Download, X } from "lucide-react";
+import { Edit2, Save, Trash2, Upload, Download, X, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { EditProjectModal } from "@/components/EditProjectModal";
 
@@ -78,6 +78,41 @@ function ProjectPage() {
     load();
   };
 
+  const addYearlyRow = async () => {
+    if (!editable) { toast.error("You don't have permission."); return; }
+    const nextYear = (yearly.length ? Math.max(...yearly.map((y) => y.year_number)) : 0) + 1;
+    const { error } = await supabase.from("project_yearly_status").insert({
+      project_id: id,
+      year_number: nextYear,
+      sanctioned_amount: 0,
+      amount_released: 0,
+      grant_released: false,
+      report_status: "Due",
+      uc_submitted: false,
+      extension_requested: false,
+      financial_year: getCurrentFY(),
+      grant_sanctioned: false,
+      hold_amount: 0,
+      hold_amount_released: false,
+      grant_release_date: null,
+    });
+    if (error) { toast.error(error.message); return; }
+    toast.success("Added yearly record");
+    load();
+  };
+
+  const deleteYearlyRow = async (yId: string) => {
+    if (!editable) { toast.error("You don't have permission."); return; }
+    const old = yearly.find((y) => y.id === yId);
+    if (!old) return;
+    if (!confirm(`Delete year ${old.year_number} record?`)) return;
+    const { error } = await supabase.from("project_yearly_status").delete().eq("id", yId);
+    if (error) { toast.error(error.message); return; }
+    await logHistory(`year_${old.year_number}_deleted`, old.year_number, null, old.year_number);
+    toast.success("Deleted yearly record");
+    load();
+  };
+
   const updateProject = async (patch: Partial<Project>) => {
     if (!editable) { toast.error("You don't have permission."); return; }
     const { error } = await supabase.from("projects").update(patch).eq("id", id);
@@ -86,6 +121,30 @@ function ProjectPage() {
       await logHistory(k, (project as any)[k], (patch as any)[k]);
     }
     toast.success("Saved");
+    load();
+  };
+
+  const updateBudgetValue = async (field: "required_budget" | "released_budget", value: number) => {
+    if (!editable) { toast.error("You don't have permission."); return; }
+    if (fyBudget) {
+      const { error } = await supabase.from("project_fy_budget").update({ [field]: value }).eq("id", fyBudget.id);
+      if (error) { toast.error(error.message); return; }
+    } else {
+      const { error } = await supabase.from("project_fy_budget").insert({ project_id: id, financial_year: "2025-2026", required_budget: 0, released_budget: 0, [field]: value });
+      if (error) { toast.error(error.message); return; }
+    }
+    toast.success("Budget updated");
+    load();
+  };
+
+  const updateYearlyField = async (yId: string, field: keyof YearlyStatus, value: any) => {
+    if (!editable) { toast.error("You don't have permission."); return; }
+    const old = yearly.find((y) => y.id === yId);
+    if (!old) return;
+    const { error } = await supabase.from("project_yearly_status").update({ [field]: value }).eq("id", yId);
+    if (error) { toast.error(error.message); return; }
+    await logHistory(`year_${old.year_number}_${field}`, (old as any)[field], value, old.year_number);
+    toast.success("Updated");
     load();
   };
 
@@ -164,66 +223,92 @@ function ProjectPage() {
 
       {/* Project Details */}
       <Card title="Project Details">
-        <div className="grid md:grid-cols-2 gap-x-6 gap-y-2 text-sm">
-          <Field label="Serial Number" value={project.serial_number} />
-          <Field label="File Number" value={project.file_number} />
-          <Field label="e-Office Number" value={project.eoffice_number} />
-          <Field label="IRIS / EPMS ID" value={project.iris_id} />
-          <Field label="PI Name" value={project.pi_name} />
-          <Field label="Co-PI(s)" value={
-            project.co_pi ? (
-              <div className="flex flex-wrap gap-1">
-                {project.co_pi.split(/\s*\|\s*/).filter(Boolean).map((c, i) => (
-                  <span key={i} className="inline-block text-[11px] px-2 py-0.5 rounded bg-[#D6E4F0] text-[#1E3A5F] dark:bg-[#1E3A5F] dark:text-[#86B6E5]">{c}</span>
-                ))}
-              </div>
-            ) : null
-          } />
-          <Field label="Multi-centre Project" value={
-            <span className={`text-[11px] px-2 py-0.5 rounded ${project.is_multicentre ? "bg-[#16A34A] text-white" : "bg-muted text-muted-foreground"}`}>
-              {project.is_multicentre ? "Yes" : "No"}
-            </span>
-          } />
-          <Field label="Centre Details" value={project.centre_details} />
-          <Field label="Contact Number" value={project.contact_number} />
-          <Field label="Email ID" value={project.email_id ? <a href={`mailto:${project.email_id}`} className="text-[#2E75B6] hover:underline">{project.email_id}</a> : null} />
-          <Field label="Department" value={project.department} />
-          <Field label="Broad Subject Area" value={project.broad_subject_area} />
-          <Field label="Institute" value={project.institute} />
-          <Field label="Institute Address" value={project.institute_address} />
-          <Field label="State" value={project.state} />
-          <Field label="Date of Start" value={formatDate(project.start_date)} />
-          <Field label="Date of Completion" value={formatDate(project.date_of_completion)} />
-          <Field label="Duration" value={project.duration_years ? `${project.duration_years} year(s)` : null} />
-          <Field label="Project State" value={
-            editMode && editable ? (
+        <div className="grid md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <EditableProjectField label="Serial Number" value={project.serial_number} editMode={editMode && editable} onSave={(v) => updateProject({ serial_number: v || null })} />
+          <EditableProjectField label="File Number" value={project.file_number} editMode={editMode && editable} onSave={(v) => updateProject({ file_number: v || null })} />
+          <EditableProjectField label="e-Office Number" value={project.eoffice_number} editMode={editMode && editable} onSave={(v) => updateProject({ eoffice_number: v || null })} />
+          <EditableProjectField label="IRIS / EPMS ID" value={project.iris_id} editMode={editMode && editable} onSave={(v) => updateProject({ iris_id: v || null })} />
+          <EditableProjectField label="PI Name" value={project.pi_name} editMode={editMode && editable} onSave={(v) => updateProject({ pi_name: v || null })} />
+          <EditableProjectField label="Co-PI(s)" value={project.co_pi} editMode={editMode && editable} onSave={(v) => updateProject({ co_pi: v || null })} />
+          <div>
+            <div className="text-xs text-muted-foreground">Multi-centre Project</div>
+            {editMode && editable ? (
+              <label className="inline-flex items-center gap-2 text-sm pt-1">
+                <input type="checkbox" checked={!!project.is_multicentre} onChange={(e) => updateProject({ is_multicentre: e.target.checked })} />
+                Yes, this is a multi-centre project
+              </label>
+            ) : (
+              <span className={`text-[11px] px-2 py-0.5 rounded ${project.is_multicentre ? "bg-[#16A34A] text-white" : "bg-muted text-muted-foreground"}`}>
+                {project.is_multicentre ? "Yes" : "No"}
+              </span>
+            )}
+          </div>
+          <EditableProjectField label="Centre Details" value={project.centre_details} editMode={editMode && editable} onSave={(v) => updateProject({ centre_details: v || null })} />
+          <EditableProjectField label="Contact Number" value={project.contact_number} editMode={editMode && editable} onSave={(v) => updateProject({ contact_number: v || null })} />
+          <EditableProjectField label="Email ID" value={project.email_id} editMode={editMode && editable} onSave={(v) => updateProject({ email_id: v || null })} inputType="email" />
+          <EditableProjectField label="Department" value={project.department} editMode={editMode && editable} onSave={(v) => updateProject({ department: v || null })} />
+          <EditableProjectField label="Broad Subject Area" value={project.broad_subject_area} editMode={editMode && editable} onSave={(v) => updateProject({ broad_subject_area: v || null })} />
+          <EditableProjectField label="Institute" value={project.institute} editMode={editMode && editable} onSave={(v) => updateProject({ institute: v || null })} />
+          <EditableProjectField label="Institute Address" value={project.institute_address} editMode={editMode && editable} onSave={(v) => updateProject({ institute_address: v || null })} textarea />
+          <EditableProjectField label="State" value={project.state} editMode={editMode && editable} onSave={(v) => updateProject({ state: v || null })} />
+          <EditableProjectField label="Date of Start" value={project.start_date} editMode={editMode && editable} onSave={(v) => updateProject({ start_date: v || null })} inputType="date" />
+          <EditableProjectField label="Date of Completion" value={project.date_of_completion} editMode={editMode && editable} onSave={(v) => updateProject({ date_of_completion: v || null })} inputType="date" />
+          <EditableProjectField label="Duration" value={project.duration_years?.toString() || ""} editMode={editMode && editable} onSave={(v) => updateProject({ duration_years: Number(v) || null })} inputType="number" />
+          <div>
+            <div className="text-xs text-muted-foreground">Project State</div>
+            {editMode && editable ? (
               <select value={project.project_state || ""} onChange={(e) => updateProject({ project_state: e.target.value as ProjectState })}
-                className="text-sm bg-background border border-border rounded px-2 py-1">
+                className="text-sm bg-background border border-border rounded px-2 py-1 mt-1">
                 <option value="Active">Active</option><option value="Suspended">Suspended</option>
                 <option value="Under Review">Under Review</option><option value="Closed">Closed</option>
                 <option value="Completed">Completed</option>
               </select>
-            ) : <StateBadge state={project.project_state} />
-          } />
+            ) : (
+              <StateBadge state={project.project_state} />
+            )}
+          </div>
         </div>
       </Card>
 
       {/* Financial Summary */}
       <Card title="Financial Summary">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
-          <Money label="Total Sanctioned" value={project.total_sanctioned_amount} />
+          <EditableMoneyField label="Total Sanctioned" value={project.total_sanctioned_amount} editMode={editMode && editable} onSave={(v) => updateProject({ total_sanctioned_amount: Number(v) || 0 })} />
           <Money label="Total Released (Yearly Sum)" value={totalReleased} />
-          <Money label="Total Amount Released (Records)" value={project.total_amount_released} />
-          <Money label="10% Hold Amount" value={holdAmt} />
-          <div><div className="text-xs text-muted-foreground">10% Hold Released</div><div className="font-semibold">{holdReleased ? "Yes" : "No"}</div></div>
-          <Money label="2025-2026 Required" value={fyBudget?.required_budget} />
-          <Money label="2025-2026 Released" value={fyBudget?.released_budget} />
+          <EditableMoneyField label="Total Amount Released (Records)" value={project.total_amount_released} editMode={editMode && editable} onSave={(v) => updateProject({ total_amount_released: Number(v) || 0 })} />
+          <EditableMoneyField label="10% Hold Amount" value={holdAmt} editMode={editMode && editable} onSave={(v) => {
+            const firstYear = yearly.find((y) => y.year_number === 1);
+            if (firstYear) updateYearlyField(firstYear.id, "hold_amount", Number(v) || 0);
+          }} />
+          <div>
+            <div className="text-xs text-muted-foreground">10% Hold Released</div>
+            {editMode && editable ? (
+              <label className="inline-flex items-center gap-2 mt-1 text-sm">
+                <input type="checkbox" checked={!!holdReleased} onChange={(e) => {
+                  const firstYear = yearly.find((y) => y.year_number === 1);
+                  if (firstYear) updateYearlyField(firstYear.id, "hold_amount_released", e.target.checked);
+                }} />
+                Yes
+              </label>
+            ) : (
+              <div className="font-semibold">{holdReleased ? "Yes" : "No"}</div>
+            )}
+          </div>
+          <EditableMoneyField label="2025-2026 Required" value={fyBudget?.required_budget} editMode={editMode && editable} onSave={(v) => updateBudgetValue("required_budget", Number(v) || 0)} />
+          <EditableMoneyField label="2025-2026 Released" value={fyBudget?.released_budget} editMode={editMode && editable} onSave={(v) => updateBudgetValue("released_budget", Number(v) || 0)} />
           <Money label="Balance Pending" value={balance} highlight={balance > 0 ? "warning" : undefined} />
         </div>
       </Card>
 
       {/* Year-wise Grant & Status */}
       <Card title="Year-wise Grant & Status">
+        {editable && (
+          <div className="mb-3 flex justify-end">
+            <button onClick={addYearlyRow} className="inline-flex items-center gap-1 text-xs px-3 py-1.5 bg-[#16A34A] text-white rounded">
+              <Plus size={12} /> Add Year Row
+            </button>
+          </div>
+        )}
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-muted text-left">
@@ -237,6 +322,7 @@ function ProjectPage() {
                 <th className="p-2">Report Status</th>
                 <th className="p-2">UC Submitted</th>
                 <th className="p-2">Extension Requested</th>
+                <th className="p-2">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -293,10 +379,17 @@ function ProjectPage() {
                       <input type="checkbox" checked={y.extension_requested} disabled={!editable}
                         onChange={(e) => updateYearly(y.id, "extension_requested", e.target.checked)} />
                     </td>
+                    <td className="p-2">
+                      {editable && (
+                        <button onClick={() => deleteYearlyRow(y.id)} className="text-[#DC2626] hover:underline text-xs inline-flex items-center gap-1">
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })}
-              {yearly.length === 0 && <tr><td colSpan={9} className="p-4 text-center text-muted-foreground">No yearly records.</td></tr>}
+              {yearly.length === 0 && <tr><td colSpan={10} className="p-4 text-center text-muted-foreground">No yearly records.</td></tr>}
             </tbody>
           </table>
         </div>
@@ -401,6 +494,57 @@ function Field({ label, value }: { label: string; value: any }) {
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
       <div className="font-medium">{value}</div>
+    </div>
+  );
+}
+
+function EditableProjectField({
+  label, value, editMode, onSave, inputType = "text", textarea = false,
+}: {
+  label: string; value: string | number | null | undefined; editMode: boolean; onSave: (v: string) => void; inputType?: string; textarea?: boolean;
+}) {
+  const [draft, setDraft] = React.useState(String(value ?? ""));
+  React.useEffect(() => { setDraft(String(value ?? "")); }, [value]);
+
+  if (!editMode) {
+    const display = value == null || value === "" ? "—" : value;
+    return (
+      <div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <div className="font-medium">{display}</div>
+      </div>
+    );
+  }
+
+  if (textarea) {
+    return (
+      <div>
+        <div className="text-xs text-muted-foreground">{label}</div>
+        <textarea value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={(e) => onSave(e.target.value)} rows={2}
+          className="w-full mt-1 px-2 py-1.5 bg-background border border-border rounded text-sm" />
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <input type={inputType} value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={(e) => onSave(e.target.value)}
+        className="w-full mt-1 px-2 py-1.5 bg-background border border-border rounded text-sm" />
+    </div>
+  );
+}
+
+function EditableMoneyField({ label, value, editMode, onSave }: { label: string; value: number | null | undefined; editMode: boolean; onSave: (v: string) => void }) {
+  const [draft, setDraft] = React.useState(String(value ?? ""));
+  React.useEffect(() => { setDraft(String(value ?? "")); }, [value]);
+
+  if (!editMode) return <Money label={label} value={value} />;
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{label}</div>
+      <input type="number" value={draft} onChange={(e) => setDraft(e.target.value)} onBlur={(e) => onSave(e.target.value)}
+        className="w-full mt-1 px-2 py-1.5 bg-background border border-border rounded text-sm" />
     </div>
   );
 }

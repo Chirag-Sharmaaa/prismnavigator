@@ -8,11 +8,12 @@ export const Route = createFileRoute("/login")({
 });
 
 function LoginPage() {
-  const { signIn, setGuest } = useAuth();
+  const { signIn, setGuest, requestPasswordReset } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +27,18 @@ function LoginPage() {
   const goGuest = () => {
     setGuest(true);
     navigate({ to: "/" });
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      toast.error("Please enter your email address first.");
+      return;
+    }
+    setResetLoading(true);
+    const { error } = await requestPasswordReset(email.trim());
+    setResetLoading(false);
+    if (error) toast.error(error);
+    else toast.success("Password reset email sent. Please check your inbox.");
   };
 
   return (
@@ -60,6 +73,11 @@ function LoginPage() {
             {loading ? "Signing in..." : "Login"}
           </button>
         </form>
+        <div className="mt-4 text-center">
+          <button type="button" onClick={handleForgotPassword} disabled={resetLoading} className="text-sm text-[#2E75B6] hover:underline font-medium disabled:opacity-50">
+            {resetLoading ? "Sending..." : "Forgot Password?"}
+          </button>
+        </div>
         <div className="mt-6 text-center">
           <button onClick={goGuest} className="text-sm text-[#2E75B6] hover:underline font-medium">
             Continue as Guest →

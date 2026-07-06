@@ -146,23 +146,22 @@ function HomePage() {
   }, [baseProjects, yearlyByProject]);
 
   const reportStatusData = useMemo(() => {
-    // Distinct project counts
-    const due = new Set<string>();
-    const notRev = new Set<string>();
-    const rev = new Set<string>();
-    for (const p of baseProjects) {
-      const ys = yearlyByProject.get(p.id) || [];
-      for (const y of ys) {
-        if (y.report_status === "Due" && isYearOverdue(p.start_date, y.year_number)) due.add(p.id);
-        if (y.report_status === "Received - Not Reviewed") notRev.add(p.id);
-        if (y.report_status === "Received - Reviewed") rev.add(p.id);
+    const categories = CATEGORIES;
+    const rows = categories.map((cat) => {
+      const due = new Set<string>();
+      const notRev = new Set<string>();
+      const rev = new Set<string>();
+      for (const p of baseProjects.filter((project) => project.category === cat)) {
+        const ys = yearlyByProject.get(p.id) || [];
+        for (const y of ys) {
+          if (y.report_status === "Due" && isYearOverdue(p.start_date, y.year_number)) due.add(p.id);
+          if (y.report_status === "Received - Not Reviewed") notRev.add(p.id);
+          if (y.report_status === "Received - Reviewed") rev.add(p.id);
+        }
       }
-    }
-    return [
-      { name: "Due", value: due.size },
-      { name: "Received - Not Reviewed", value: notRev.size },
-      { name: "Received - Reviewed", value: rev.size },
-    ];
+      return { category: cat, Due: due.size, "Received - Not Reviewed": notRev.size, "Received - Reviewed": rev.size };
+    });
+    return rows;
   }, [baseProjects, yearlyByProject]);
 
   const donutData = CATEGORIES.map((cat) => ({ name: cat, value: counts[cat] || 0 }));
@@ -296,10 +295,13 @@ function HomePage() {
               <ResponsiveContainer width="100%" height={260}>
                 <BarChart data={reportStatusData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
-                  <XAxis dataKey="name" stroke="var(--color-muted-foreground)" />
+                  <XAxis dataKey="category" stroke="var(--color-muted-foreground)" />
                   <YAxis stroke="var(--color-muted-foreground)" />
                   <Tooltip />
-                  <Bar dataKey="value" fill="#2E75B6" />
+                  <Legend />
+                  <Bar dataKey="Due" fill="#DC2626" />
+                  <Bar dataKey="Received - Not Reviewed" fill="#D97706" />
+                  <Bar dataKey="Received - Reviewed" fill="#16A34A" />
                 </BarChart>
               </ResponsiveContainer>
             </div>
