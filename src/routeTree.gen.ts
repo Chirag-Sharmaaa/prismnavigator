@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SettingsRouteImport } from './routes/settings'
+import { Route as SetPasswordRouteImport } from './routes/set-password'
 import { Route as SearchRouteImport } from './routes/search'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminRouteImport } from './routes/admin'
@@ -20,6 +21,11 @@ import { Route as CategorySlugRouteImport } from './routes/category.$slug'
 const SettingsRoute = SettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SetPasswordRoute = SetPasswordRouteImport.update({
+  id: '/set-password',
+  path: '/set-password',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SearchRoute = SearchRouteImport.update({
@@ -58,6 +64,7 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/set-password': typeof SetPasswordRoute
   '/settings': typeof SettingsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/project/$id': typeof ProjectIdRoute
@@ -67,6 +74,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/set-password': typeof SetPasswordRoute
   '/settings': typeof SettingsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/project/$id': typeof ProjectIdRoute
@@ -77,6 +85,7 @@ export interface FileRoutesById {
   '/admin': typeof AdminRoute
   '/login': typeof LoginRoute
   '/search': typeof SearchRoute
+  '/set-password': typeof SetPasswordRoute
   '/settings': typeof SettingsRoute
   '/category/$slug': typeof CategorySlugRoute
   '/project/$id': typeof ProjectIdRoute
@@ -88,6 +97,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/search'
+    | '/set-password'
     | '/settings'
     | '/category/$slug'
     | '/project/$id'
@@ -97,6 +107,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/search'
+    | '/set-password'
     | '/settings'
     | '/category/$slug'
     | '/project/$id'
@@ -106,6 +117,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/search'
+    | '/set-password'
     | '/settings'
     | '/category/$slug'
     | '/project/$id'
@@ -116,6 +128,7 @@ export interface RootRouteChildren {
   AdminRoute: typeof AdminRoute
   LoginRoute: typeof LoginRoute
   SearchRoute: typeof SearchRoute
+  SetPasswordRoute: typeof SetPasswordRoute
   SettingsRoute: typeof SettingsRoute
   CategorySlugRoute: typeof CategorySlugRoute
   ProjectIdRoute: typeof ProjectIdRoute
@@ -128,6 +141,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/set-password': {
+      id: '/set-password'
+      path: '/set-password'
+      fullPath: '/set-password'
+      preLoaderRoute: typeof SetPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/search': {
@@ -180,6 +200,7 @@ const rootRouteChildren: RootRouteChildren = {
   AdminRoute: AdminRoute,
   LoginRoute: LoginRoute,
   SearchRoute: SearchRoute,
+  SetPasswordRoute: SetPasswordRoute,
   SettingsRoute: SettingsRoute,
   CategorySlugRoute: CategorySlugRoute,
   ProjectIdRoute: ProjectIdRoute,
@@ -187,13 +208,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

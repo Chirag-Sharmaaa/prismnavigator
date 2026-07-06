@@ -65,19 +65,30 @@ function AdminPage() {
   const createUser = async () => {
     if (!email || !name) { toast.error("Name and email required"); return; }
     const tempPwd = Math.random().toString(36).slice(2) + "Aa1!";
-    const { data, error } = await supabase.auth.signUp({ email, password: tempPwd });
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/set-password` : undefined;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: tempPwd,
+      options: {
+        data: {
+          name,
+          password_setup_required: true,
+          password_setup_completed: false,
+        },
+      },
+    });
     if (error) { toast.error(error.message); return; }
     if (data.user) {
       await supabase.from("users").insert({
         id: data.user.id, email, name, role,
         category_access: role === "manager" ? catAccess : null,
       });
-      const resetResult = await supabase.auth.resetPasswordForEmail(email);
+      const resetResult = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
       if (resetResult.error) {
         toast.error(`User created but password email failed: ${resetResult.error.message}`);
       }
     }
-    toast.success(`Invitation sent to ${email}. Please ask the user to confirm their email and set a password.`);
+    toast.success(`Invitation sent to ${email}. The user will be taken to the password setup page first.`);
     setName(""); setEmail(""); setCatAccess([]);
     load();
   };
