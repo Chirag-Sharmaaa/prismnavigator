@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, useSearch } from "@tanstack/react-router";
 import * as React from "react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 export const Route = createFileRoute("/set-password")({
   component: SetPasswordPage,
@@ -9,6 +10,7 @@ export const Route = createFileRoute("/set-password")({
 
 function SetPasswordPage() {
   const navigate = useNavigate();
+  const search = useSearch({ from: "/set-password" });
   const { setPassword, verifyRecovery } = useAuth();
   const [password, setPasswordInput] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
@@ -50,7 +52,6 @@ function SetPasswordPage() {
         <div className="text-center mb-8">
           <h1 className="text-5xl font-extrabold text-[#1E3A5F] tracking-wider">PRISM</h1>
           <p className="text-sm text-[#1E3A5F]/80 mt-2 font-medium">Set your password to continue</p>
-          <p className="text-xs text-muted-foreground mt-1">You must finish this step before accessing the app.</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
@@ -65,7 +66,6 @@ function SetPasswordPage() {
             {loading ? "Saving..." : "Set Password"}
           </button>
         </form>
-        <p className="mt-4 text-center text-xs text-muted-foreground">You will be redirected to the app after this is complete.</p>
       </div>
     </div>
   );

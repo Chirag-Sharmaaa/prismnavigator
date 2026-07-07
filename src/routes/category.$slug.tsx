@@ -453,7 +453,7 @@ function CategoryPage() {
                   <th className="p-3">e-Office No.</th>
                   <th className="p-3">Title</th>
                   <th className="p-3">PI</th>
-                  <th className="p-3">Institute</th>
+                  <th className="p-3">DOS</th>
                   <th className="p-3">State</th>
                   <th className="p-3">Project State</th>
               <th className="p-3">Grant</th>
@@ -481,7 +481,7 @@ function CategoryPage() {
                         </Link>
                       </td>
                       <td className="p-3">{p.pi_name || "—"}</td>
-                      <td className="p-3 max-w-[200px] truncate">{p.institute || "—"}</td>
+                      <td className="p-3 text-xs">{formatDate(p.start_date)}</td>
                       <td className="p-3">{p.state || "—"}</td>
                       <td className="p-3"><StateBadge state={p.project_state} /></td>
                   <td className="p-3">{cur ? (cur.grant_released ? <span className="text-[#16A34A]">✓</span> : <span className="text-[#DC2626]">✗</span>) : "—"}</td>

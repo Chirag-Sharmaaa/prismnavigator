@@ -7,7 +7,6 @@ interface AuthContextValue {
   user: AppUser | null;
   loading: boolean;
   isGuest: boolean;
-  passwordSetupRequired: boolean;
   signIn: (email: string, password: string) => Promise<{ error: string | null }>;
   signOut: () => Promise<void>;
   setGuest: (v: boolean) => void;
@@ -23,18 +22,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = React.useState<AppUser | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [isGuest, setIsGuestState] = React.useState(false);
-  const [passwordSetupRequired, setPasswordSetupRequired] = React.useState(false);
 
   const loadUser = React.useCallback(async () => {
     const { data: sess } = await supabase.auth.getSession();
     if (!sess.session) {
       setUser(null);
-      setPasswordSetupRequired(false);
       return;
     }
     const sUser = sess.session.user;
-    const needsSetup = Boolean(sUser.user_metadata?.password_setup_required || sUser.user_metadata?.password_setup_completed === false);
-    setPasswordSetupRequired(needsSetup);
     const { data } = await supabase.from("users").select("*").eq("id", sUser.id).maybeSingle();
     if (data) setUser(data as AppUser);
     else {
@@ -103,17 +98,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const setPassword = async (password: string) => {
-    const { error } = await supabase.auth.updateUser({ password, data: { password_setup_required: false, password_setup_completed: true } });
-    if (!error) {
-      setPasswordSetupRequired(false);
-      await loadUser();
-    }
+    const { error } = await supabase.auth.updateUser({ password });
+    if (!error) await loadUser();
     return { error: error?.message ?? null };
   };
 
   return (
     <AuthContext.Provider
-      value={{ user, loading, isGuest, passwordSetupRequired, signIn, signOut, setGuest, refresh: loadUser, requestPasswordReset, verifyRecovery, setPassword }}
+      value={{ user, loading, isGuest, signIn, signOut, setGuest, refresh: loadUser, requestPasswordReset, verifyRecovery, setPassword }}
     >
       {children}
     </AuthContext.Provider>
@@ -127,7 +119,7 @@ export function useAuth() {
 }
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, isGuest, loading, passwordSetupRequired } = useAuth();
+  const { user, isGuest, loading } = useAuth();
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   const navigate = useNavigate();
   const isLogin = pathname === "/login";
@@ -135,12 +127,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   React.useEffect(() => {
     if (loading || isLogin || isPasswordSetup) return;
-    if (passwordSetupRequired && user) {
-      navigate({ to: "/set-password" });
-      return;
-    }
     if (!user && !isGuest) navigate({ to: "/login" });
-  }, [loading, user, isGuest, isLogin, isPasswordSetup, passwordSetupRequired, navigate]);
+  }, [loading, user, isGuest, isLogin, isPasswordSetup, navigate]);
 
   if (loading) {
     return (
