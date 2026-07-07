@@ -1,13 +1,16 @@
 import { createFileRoute, Link, useParams } from "@tanstack/react-router";
 import * as React from "react";
+import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { supabase, CATEGORY_SLUGS, type Category } from "@/lib/supabase";
 import type { Project, YearlyStatus } from "@/lib/types";
 import { Layout } from "@/components/Layout";
 import { useAuth, canEdit, canDelete, canViewCategory } from "@/lib/auth";
 import { ImportModal } from "@/components/ImportModal";
 import { AddProjectModal } from "@/components/AddProjectModal";
-import { Upload, X, Trash2, Plus } from "lucide-react";
-import { isYearOverdue, currentYearNumber, getCurrentFY, formatINR } from "@/lib/format";
+import { Upload, X, Trash2, Plus, Download } from "lucide-react";
+import { isYearOverdue, currentYearNumber, getCurrentFY, formatINR, formatDate } from "@/lib/format";
 import type { FYBudget } from "@/lib/types";
 import { toast } from "sonner";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend } from "recharts";
@@ -17,6 +20,78 @@ export const Route = createFileRoute("/category/$slug")({
 });
 
 type FilterKey = "all" | "grantReleased" | "grantPending" | "reportDue" | "reportNotReviewed" | "reportReviewed" | "fyPending";
+type ExportFormat = "excel" | "pdf";
+
+type ExportFieldKey =
+  | "serial_number"
+  | "file_number"
+  | "eoffice_number"
+  | "iris_id"
+  | "title"
+  | "pi_name"
+  | "co_pi"
+  | "department"
+  | "institute"
+  | "institute_address"
+  | "state"
+  | "broad_subject_area"
+  | "project_state"
+  | "start_date"
+  | "date_of_completion"
+  | "duration_years"
+  | "total_sanctioned_amount"
+  | "total_amount_released"
+  | "current_status_note"
+  | "remarks"
+  | "outcomes_publications"
+  | "grant_released"
+  | "report_status"
+  | "financial_year"
+  | "fy_pending_amount";
+
+const EXPORT_FIELDS: Array<{ key: ExportFieldKey; label: string }> = [
+  { key: "serial_number", label: "S. No." },
+  { key: "file_number", label: "File No." },
+  { key: "eoffice_number", label: "e-Office No." },
+  { key: "iris_id", label: "IRIS ID" },
+  { key: "title", label: "Title" },
+  { key: "pi_name", label: "PI Name" },
+  { key: "co_pi", label: "Co-PI" },
+  { key: "department", label: "Department" },
+  { key: "institute", label: "Institute" },
+  { key: "institute_address", label: "Institute Address" },
+  { key: "state", label: "State" },
+  { key: "broad_subject_area", label: "Broad Subject Area" },
+  { key: "project_state", label: "Project State" },
+  { key: "start_date", label: "Start Date" },
+  { key: "date_of_completion", label: "Completion Date" },
+  { key: "duration_years", label: "Duration (Years)" },
+  { key: "total_sanctioned_amount", label: "Total Sanctioned Amount" },
+  { key: "total_amount_released", label: "Total Amount Released" },
+  { key: "current_status_note", label: "Current Status Note" },
+  { key: "remarks", label: "Remarks" },
+  { key: "outcomes_publications", label: "Outcomes / Publications" },
+  { key: "grant_released", label: "Current Grant Released" },
+  { key: "report_status", label: "Current Report Status" },
+  { key: "financial_year", label: "Current Financial Year" },
+  { key: "fy_pending_amount", label: "FY Pending Amount" },
+];
+
+const DEFAULT_EXPORT_FIELDS: ExportFieldKey[] = [
+  "serial_number",
+  "file_number",
+  "eoffice_number",
+  "title",
+  "pi_name",
+  "institute",
+  "state",
+  "project_state",
+  "total_sanctioned_amount",
+  "grant_released",
+  "report_status",
+  "financial_year",
+  "fy_pending_amount",
+];
 
 function CategoryPage() {
   const { slug } = useParams({ from: "/category/$slug" });
@@ -29,6 +104,9 @@ function CategoryPage() {
   const [showImport, setShowImport] = React.useState(false);
   const [showAdd, setShowAdd] = React.useState(false);
   const [filter, setFilter] = React.useState<FilterKey>("all");
+  const [showExport, setShowExport] = React.useState(false);
+  const [exportFormat, setExportFormat] = React.useState<ExportFormat>("excel");
+  const [selectedExportFields, setSelectedExportFields] = React.useState<ExportFieldKey[]>(DEFAULT_EXPORT_FIELDS);
 
   const [activeOnly, setActiveOnly] = React.useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -168,6 +246,72 @@ function CategoryPage() {
   const canImport = canEdit(user, isGuest, category);
   const canBulkDelete = canDelete(user, isGuest);
 
+  const buildExportRow = (p: Project) => {
+    const cur = currentYearOf(p);
+    const fyPending = fyPendingAmt(p);
+    return {
+      serial_number: p.serial_number || "—",
+      file_number: p.file_number || "—",
+      eoffice_number: p.eoffice_number || "—",
+      iris_id: p.iris_id || "—",
+      title: p.title || "—",
+      pi_name: p.pi_name || "—",
+      co_pi: p.co_pi || "—",
+      department: p.department || "—",
+      institute: p.institute || "—",
+      institute_address: p.institute_address || "—",
+      state: p.state || "—",
+      broad_subject_area: p.broad_subject_area || "—",
+      project_state: p.project_state || "—",
+      start_date: formatDate(p.start_date),
+      date_of_completion: formatDate(p.date_of_completion),
+      duration_years: p.duration_years ?? "—",
+      total_sanctioned_amount: p.total_sanctioned_amount == null ? "—" : formatINR(p.total_sanctioned_amount),
+      total_amount_released: p.total_amount_released == null ? "—" : formatINR(p.total_amount_released),
+      current_status_note: p.current_status_note || "—",
+      remarks: p.remarks || "—",
+      outcomes_publications: p.outcomes_publications || "—",
+      grant_released: cur ? (cur.grant_released ? "Yes" : "No") : "—",
+      report_status: cur?.report_status || "—",
+      financial_year: cur?.financial_year || "—",
+      fy_pending_amount: fyPending > 0 ? formatINR(fyPending) : "—",
+    } satisfies Record<ExportFieldKey, string | number>;
+  };
+
+  const handleExport = () => {
+    if (!selectedExportFields.length) {
+      toast.error("Select at least one column to export.");
+      return;
+    }
+
+    const rows = filtered.map(buildExportRow);
+    const headers = selectedExportFields.map((key) => EXPORT_FIELDS.find((field) => field.key === key)?.label || key);
+    const body = rows.map((row) => selectedExportFields.map((key) => row[key] ?? ""));
+
+    if (exportFormat === "excel") {
+      const sheet = XLSX.utils.aoa_to_sheet([headers, ...body]);
+      const workbook = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(workbook, sheet, category);
+      XLSX.writeFile(workbook, `${category.toLowerCase()}-projects-export.xlsx`);
+    } else {
+      const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+      doc.setFontSize(14);
+      doc.text(`${category} Projects Export`, 40, 36);
+      autoTable(doc, {
+        startY: 56,
+        head: [headers],
+        body,
+        styles: { fontSize: 8, cellPadding: 3 },
+        headStyles: { fillColor: [30, 58, 95], textColor: 255 },
+        alternateRowStyles: { fillColor: [245, 247, 250] },
+      });
+      doc.save(`${category.toLowerCase()}-projects-export.pdf`);
+    }
+
+    setShowExport(false);
+    toast.success(`Exported ${rows.length} project${rows.length === 1 ? "" : "s"} as ${exportFormat === "excel" ? "Excel" : "PDF"}.`);
+  };
+
   const toggleSelect = (id: string) => {
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -224,6 +368,10 @@ function CategoryPage() {
               </button>
             </>
           )}
+          <button onClick={() => setShowExport(true)}
+            className="inline-flex items-center gap-2 bg-[#16A34A] text-white px-4 py-2 rounded-md text-sm font-medium hover:opacity-90">
+            <Download size={16} /> Export
+          </button>
         </div>
       </div>
 
@@ -353,6 +501,60 @@ function CategoryPage() {
 
       {showImport && <ImportModal category={category} onClose={() => setShowImport(false)} onImported={load} />}
       {showAdd && <AddProjectModal category={category} onClose={() => setShowAdd(false)} onCreated={load} />}
+
+      {showExport && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-card text-card-foreground border border-border rounded-lg p-5 max-w-2xl w-full">
+            <h3 className="font-bold text-lg mb-2">Export Projects</h3>
+            <p className="text-sm text-muted-foreground mb-4">
+              Choose the file format and the columns to include for the currently visible projects.
+            </p>
+            <div className="grid md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className="text-sm font-medium block mb-2">Export format</label>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setExportFormat("excel")}
+                    className={`px-3 py-2 rounded border text-sm ${exportFormat === "excel" ? "bg-[#2E75B6] text-white border-[#2E75B6]" : "bg-background border-border"}`}>
+                    Excel
+                  </button>
+                  <button
+                    onClick={() => setExportFormat("pdf")}
+                    className={`px-3 py-2 rounded border text-sm ${exportFormat === "pdf" ? "bg-[#2E75B6] text-white border-[#2E75B6]" : "bg-background border-border"}`}>
+                    PDF
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium block mb-2">Columns</label>
+                <div className="flex flex-wrap gap-2 max-h-40 overflow-auto border border-border rounded p-2 bg-background">
+                  {EXPORT_FIELDS.map((field) => {
+                    const checked = selectedExportFields.includes(field.key);
+                    return (
+                      <label key={field.key} className="inline-flex items-center gap-2 text-xs bg-card px-2 py-1 rounded border border-border cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => {
+                            setSelectedExportFields((prev) =>
+                              prev.includes(field.key) ? prev.filter((item) => item !== field.key) : [...prev, field.key]
+                            );
+                          }}
+                        />
+                        {field.label}
+                      </label>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowExport(false)} className="text-xs px-3 py-1.5 border border-border rounded hover:bg-muted">Cancel</button>
+              <button onClick={handleExport} className="text-xs px-3 py-1.5 bg-[#16A34A] text-white rounded">Export {exportFormat === "excel" ? "Excel" : "PDF"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showConfirm && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
