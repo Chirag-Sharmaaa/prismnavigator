@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import * as XLSX from "xlsx";
 import { ChevronDown, Search as SearchIcon, AlertTriangle, X } from "lucide-react";
 import { supabase, CATEGORIES, type Category } from "@/lib/supabase";
 import { useAuth, canViewCategory } from "@/lib/auth";
@@ -8,7 +7,6 @@ import type { Project, YearlyStatus } from "@/lib/types";
 import { Layout } from "@/components/Layout";
 import { isYearOverdue, getCurrentFY, formatINR } from "@/lib/format";
 import type { FYBudget } from "@/lib/types";
-import { toast } from "sonner";
 import {
   PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid,
 } from "recharts";
@@ -192,32 +190,6 @@ function HomePage() {
   const toggleCat = (c: Category) =>
     setFilterCats((fs) => (fs.includes(c) ? fs.filter((x) => x !== c) : [...fs, c]));
 
-  const exportDashboard = () => {
-    const summaryRows = [
-      ["Metric", "Value"],
-      ["Total Projects", counts.TOTAL],
-      ["Active Projects", baseProjects.filter((p) => p.project_state === "Active").length],
-      ["Action Required", actionRequiredIds.size],
-      ["FY Pending Grants", formatINR(fyPending.total)],
-      ["Multi-centre Projects", multiCentre.length],
-    ];
-    const projectRows = [
-      ["Category", "Title", "PI", "Institute", "File No.", "e-Office No.", "IRIS ID", "State", "Project State", "Grant Pending", "Report Status"],
-      ...baseProjects.map((p) => {
-        const ys = yearlyByProject.get(p.id) || [];
-        const cur = ys.find((y) => y.report_status) || ys[0];
-        const pendingAmount = fyPending.items.find((item) => item.project.id === p.id)?.pending || 0;
-        return [p.category, p.title, p.pi_name || "—", p.institute || "—", p.file_number || "—", p.eoffice_number || "—", p.iris_id || "—", p.state || "—", p.project_state || "—", formatINR(pendingAmount), cur?.report_status || "—"];
-      }),
-    ];
-
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Dashboard Summary");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(projectRows), "Projects");
-    XLSX.writeFile(workbook, "prism-dashboard-export.xlsx");
-    toast.success("Dashboard exported successfully.");
-  };
-
   return (
     <Layout fullBleed>
       {/* HERO */}
@@ -252,18 +224,10 @@ function HomePage() {
       <div className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto">
         <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
           <h2 className="text-3xl font-bold text-[var(--navy)] dark:text-white">PRISM Dashboard</h2>
-          <div className="flex items-center gap-3 flex-wrap">
-            <button
-              onClick={exportDashboard}
-              className="inline-flex items-center rounded-md border border-border bg-card px-3 py-1.5 text-sm hover:bg-muted"
-            >
-              Export Dashboard
-            </button>
-            <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
-              <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
-              Active projects only
-            </label>
-          </div>
+          <label className="inline-flex items-center gap-2 text-xs text-muted-foreground cursor-pointer select-none">
+            <input type="checkbox" checked={activeOnly} onChange={(e) => setActiveOnly(e.target.checked)} />
+            Active projects only
+          </label>
         </div>
 
         {loading ? (

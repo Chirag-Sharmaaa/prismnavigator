@@ -72,13 +72,12 @@ function AdminPage() {
         id: data.user.id, email, name, role,
         category_access: role === "manager" ? catAccess : null,
       });
-      const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=invite` : undefined;
-      const inviteResult = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
-      if (inviteResult.error) {
-        toast.error(`User created but invitation email failed: ${inviteResult.error.message}`);
+      const resetResult = await supabase.auth.resetPasswordForEmail(email);
+      if (resetResult.error) {
+        toast.error(`User created but password email failed: ${resetResult.error.message}`);
       }
     }
-    toast.success(`Invitation sent to ${email}. Please ask the user to activate their account and create a password.`);
+    toast.success(`Invitation sent to ${email}. Please ask the user to confirm their email and set a password.`);
     setName(""); setEmail(""); setCatAccess([]);
     load();
   };

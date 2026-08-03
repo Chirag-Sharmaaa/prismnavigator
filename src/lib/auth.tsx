@@ -11,9 +11,9 @@ interface AuthContextValue {
   signOut: () => Promise<void>;
   setGuest: (v: boolean) => void;
   refresh: () => Promise<void>;
-  requestPasswordReset: (email: string, flow?: "reset" | "invite") => Promise<{ error: string | null }>;
+  requestPasswordReset: (email: string) => Promise<{ error: string | null }>;
   verifyRecovery: (tokenHash: string, type: string) => Promise<{ error: string | null }>;
-  setPassword: (password: string, tokenHash?: string, type?: string) => Promise<{ error: string | null }>;
+  setPassword: (password: string) => Promise<{ error: string | null }>;
 }
 
 const AuthContext = React.createContext<AuthContextValue | null>(null);
@@ -31,19 +31,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     const sUser = sess.session.user;
     const { data } = await supabase.from("users").select("*").eq("id", sUser.id).maybeSingle();
-    if (data) {
-      setUser({
-        ...(data as AppUser),
-        email: (data as AppUser).email || sUser.email || "",
-        name: (data as AppUser).name || sUser.user_metadata?.full_name || sUser.user_metadata?.name || sUser.email || "User",
-        role: ((data as AppUser).role as UserRole) || "guest",
-        category_access: (data as AppUser).category_access || [],
-      });
-    } else {
+    if (data) setUser(data as AppUser);
+    else {
       setUser({
         id: sUser.id,
         email: sUser.email || "",
-        name: sUser.user_metadata?.full_name || sUser.user_metadata?.name || sUser.email || "User",
+        name: sUser.user_metadata?.name || sUser.email || "User",
         role: "guest" as UserRole,
         category_access: [],
       });
@@ -92,8 +85,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsGuestState(v);
   };
 
-  const requestPasswordReset = async (email: string, flow: "reset" | "invite" = "reset") => {
-    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=${flow}` : undefined;
+  const requestPasswordReset = async (email: string) => {
+    const redirectTo = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=reset` : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email, redirectTo ? { redirectTo } : undefined);
     return { error: error?.message ?? null };
   };
@@ -104,11 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { error: error?.message ?? null };
   };
 
-  const setPassword = async (password: string, tokenHash?: string, type?: string) => {
-    if (tokenHash && type) {
-      const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: type as any });
-      if (verifyError) return { error: verifyError.message };
-    }
+  const setPassword = async (password: string) => {
     const { error } = await supabase.auth.updateUser({ password });
     if (!error) await loadUser();
     return { error: error?.message ?? null };

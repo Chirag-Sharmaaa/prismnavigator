@@ -251,15 +251,6 @@ function ProjectPage() {
           <EditableProjectField label="Institute" value={project.institute} editMode={editMode && editable} onSave={(v) => updateProject({ institute: v || null })} />
           <EditableProjectField label="Institute Address" value={project.institute_address} editMode={editMode && editable} onSave={(v) => updateProject({ institute_address: v || null })} textarea />
           <EditableProjectField label="State" value={project.state} editMode={editMode && editable} onSave={(v) => updateProject({ state: v || null })} />
-          <EditableProjectField label="Region" value={project.region} editMode={editMode && editable} onSave={(v) => updateProject({ region: v || null })} />
-          <EditableProjectField label="Proposal Type" value={project.proposal_type} editMode={editMode && editable} onSave={(v) => updateProject({ proposal_type: v || null })} />
-          <EditableProjectField label="Project ID" value={project.project_id} editMode={editMode && editable} onSave={(v) => updateProject({ project_id: v || null })} />
-          <EditableProjectField label="Priority Disease Categorization" value={project.priority_disease_categorization} editMode={editMode && editable} onSave={(v) => updateProject({ priority_disease_categorization: v || null })} />
-          <EditableProjectField label="Aetiology / Pathogenesis / Sub-condition" value={project.aetiology_pathogenesis_sub_condition} editMode={editMode && editable} onSave={(v) => updateProject({ aetiology_pathogenesis_sub_condition: v || null })} />
-          <EditableProjectField label="Research Phase / Modalities" value={project.research_phase_modalities} editMode={editMode && editable} onSave={(v) => updateProject({ research_phase_modalities: v || null })} />
-          <EditableProjectField label="Project Stage" value={project.project_stage} editMode={editMode && editable} onSave={(v) => updateProject({ project_stage: v || null })} />
-          <EditableProjectField label="PO" value={project.po} editMode={editMode && editable} onSave={(v) => updateProject({ po: v || null })} />
-          <EditableProjectField label="Project Year" value={project.project_year} editMode={editMode && editable} onSave={(v) => updateProject({ project_year: v || null })} />
           <EditableProjectField label="Date of Start" value={project.start_date} editMode={editMode && editable} onSave={(v) => updateProject({ start_date: v || null })} inputType="date" />
           <EditableProjectField label="Date of Completion" value={project.date_of_completion} editMode={editMode && editable} onSave={(v) => updateProject({ date_of_completion: v || null })} inputType="date" />
           <EditableProjectField label="Duration" value={project.duration_years?.toString() || ""} editMode={editMode && editable} onSave={(v) => updateProject({ duration_years: Number(v) || null })} inputType="number" />
@@ -406,12 +397,6 @@ function ProjectPage() {
 
       {/* Outcomes */}
       <EditableTextCard title="Outcomes & Publications" value={project.outcomes_publications} editable={editable} onSave={(v) => updateProject({ outcomes_publications: v })} />
-      <EditableTextCard title="Details" value={project.details} editable={editable} onSave={(v) => updateProject({ details: v })} />
-      <EditableTextCard title="Objectives" value={project.objectives} editable={editable} onSave={(v) => updateProject({ objectives: v })} />
-      <EditableTextCard title="Expected Outcome / Deliverables" value={project.expected_outcome_deliverables} editable={editable} onSave={(v) => updateProject({ expected_outcome_deliverables: v })} />
-      <EditableTextCard title="Disease / Condition" value={project.disease_condition} editable={editable} onSave={(v) => updateProject({ disease_condition: v })} />
-      <EditableTextCard title="Details of Expected Outcome" value={project.details_of_expected_outcome} editable={editable} onSave={(v) => updateProject({ details_of_expected_outcome: v })} />
-      <EditableTextCard title="Equipment Approved" value={project.equipment_approved} editable={editable} onSave={(v) => updateProject({ equipment_approved: v })} />
 
       {/* Merged: Comments, Status & Remarks */}
       <Card title="Comments, Status & Remarks">

@@ -15,14 +15,11 @@ function SetPasswordPage() {
   const [password, setPasswordInput] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
-  const [flow, setFlow] = React.useState<string>("reset");
 
   React.useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const token = params.get("token_hash");
     const type = params.get("type");
-    const flowParam = params.get("flow") || "reset";
-    setFlow(flowParam);
     if (token && type) {
       verifyRecovery(token, type).catch(() => {});
     }
@@ -38,17 +35,14 @@ function SetPasswordPage() {
       toast.error("Passwords do not match.");
       return;
     }
-    const params = new URLSearchParams(window.location.search);
-    const token = params.get("token_hash");
-    const type = params.get("type");
     setLoading(true);
-    const { error } = await setPassword(password, token || undefined, type || undefined);
+    const { error } = await setPassword(password);
     setLoading(false);
     if (error) {
       toast.error(error);
       return;
     }
-    toast.success(flow === "invite" ? "Account activated successfully" : "Password set successfully");
+    toast.success("Password set successfully");
     navigate({ to: "/" });
   };
 
@@ -57,9 +51,7 @@ function SetPasswordPage() {
       <div className="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-5xl font-extrabold text-[#1E3A5F] tracking-wider">PRISM</h1>
-          <p className="text-sm text-[#1E3A5F]/80 mt-2 font-medium">
-            {flow === "invite" ? "Create your password to activate your account" : "Set your password to continue"}
-          </p>
+          <p className="text-sm text-[#1E3A5F]/80 mt-2 font-medium">Set your password to continue</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
