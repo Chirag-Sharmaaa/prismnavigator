@@ -23,50 +23,85 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = React.useState(true);
   const [isGuest, setIsGuestState] = React.useState(false);
 
+  const setGuest = React.useCallback((v: boolean) => {
+    setIsGuestState(v);
+    if (typeof window !== "undefined") {
+      if (v) localStorage.setItem("prism-guest", "true");
+      else localStorage.removeItem("prism-guest");
+    }
+  }, []);
+
   const loadUser = React.useCallback(async () => {
     const { data: sess } = await supabase.auth.getSession();
     if (!sess.session) {
       setUser(null);
+      setGuest(false);
       return;
     }
     const sUser = sess.session.user;
     const meta = (sUser.user_metadata || {}) as Record<string, any>;
     const { data } = await supabase.from("users").select("*").eq("id", sUser.id).maybeSingle();
+    const categoryAccess = Array.isArray(meta.category_access)
+      ? meta.category_access
+      : (typeof meta.category_access === "string" ? meta.category_access.split(",").map((c: string) => c.trim()).filter(Boolean) : []);
+
     if (data) {
       const profile = data as AppUser;
-      setUser({
+      const hydratedUser = {
         ...profile,
         name: profile.name || meta.name || meta.full_name || sUser.email || "User",
         role: (profile.role || meta.role || "guest") as UserRole,
-        category_access: profile.category_access ?? (Array.isArray(meta.category_access) ? meta.category_access : []),
-      });
-    } else {
-      const categoryAccess = Array.isArray(meta.category_access)
-        ? meta.category_access
-        : (typeof meta.category_access === "string" ? meta.category_access.split(",").map((c: string) => c.trim()).filter(Boolean) : []);
-      setUser({
+        category_access: profile.category_access ?? categoryAccess,
+      };
+      setUser(hydratedUser);
+      setGuest(false);
+      return;
+    }
+
+    const fallbackUser: AppUser = {
+      id: sUser.id,
+      email: sUser.email || "",
+      name: meta.name || meta.full_name || sUser.email || "User",
+      role: (meta.role as UserRole | undefined) || "guest",
+      category_access: categoryAccess,
+    };
+
+    try {
+      const { data: created, error } = await supabase.from("users").insert({
         id: sUser.id,
         email: sUser.email || "",
-        name: meta.name || meta.full_name || sUser.email || "User",
-        role: (meta.role as UserRole | undefined) || "guest",
-        category_access: categoryAccess,
-      });
+        name: fallbackUser.name,
+        role: fallbackUser.role,
+        category_access: fallbackUser.category_access,
+      }).select().single();
+      if (!error && created) {
+        setUser({ ...(created as AppUser), category_access: (created as AppUser).category_access ?? fallbackUser.category_access });
+      } else {
+        setUser(fallbackUser);
+      }
+    } catch {
+      setUser(fallbackUser);
     }
-  }, []);
+    setGuest(false);
+  }, [setGuest]);
 
   React.useEffect(() => {
     if (typeof window === "undefined") {
       setLoading(false);
       return;
     }
-    setIsGuestState(localStorage.getItem("prism-guest") === "true");
+    setGuest(localStorage.getItem("prism-guest") === "true");
     loadUser().finally(() => setLoading(false));
     const { data: sub } = supabase.auth.onAuthStateChange((_evt, session) => {
-      if (!session) setUser(null);
-      else loadUser();
+      if (!session) {
+        setUser(null);
+        setGuest(false);
+      } else {
+        void loadUser();
+      }
     });
     return () => sub.subscription.unsubscribe();
-  }, [loadUser]);
+  }, [loadUser, setGuest]);
 
   const signIn = async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -86,14 +121,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setIsGuestState(false);
     setUser(null);
-  };
-
-  const setGuest = (v: boolean) => {
-    if (typeof window !== "undefined") {
-      if (v) localStorage.setItem("prism-guest", "true");
-      else localStorage.removeItem("prism-guest");
-    }
-    setIsGuestState(v);
   };
 
   const requestPasswordReset = async (email: string) => {

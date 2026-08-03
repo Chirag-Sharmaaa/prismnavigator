@@ -80,10 +80,19 @@ function AdminPage() {
     });
     if (error) { toast.error(error.message); return; }
     if (data.user) {
-      await supabase.from("users").upsert({
-        id: data.user.id, email, name, role,
-        category_access: role === "manager" ? catAccess : null,
-      }, { onConflict: "id" });
+      const profilePayload = {
+        id: data.user.id,
+        email,
+        name,
+        role,
+        category_access: role === "manager" ? catAccess : [],
+      };
+      const { error: profileError } = await supabase.from("users").upsert(profilePayload, { onConflict: "id" });
+      if (profileError) {
+        toast.error(`User created in auth but profile save failed: ${profileError.message}`);
+      } else {
+        setUsers((prev) => [{ ...(profilePayload as AppUser), created_at: new Date().toISOString() }, ...prev]);
+      }
       const resetResult = await supabase.auth.resetPasswordForEmail(email, inviteRedirect ? { redirectTo: inviteRedirect } : undefined);
       if (resetResult.error) {
         toast.error(`User created but password email failed: ${resetResult.error.message}`);

@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState, useMemo } from "react";
-import * as XLSX from "xlsx";
+import { jsPDF } from "jspdf";
+import autoTable from "jspdf-autotable";
 import { ChevronDown, Search as SearchIcon, AlertTriangle, X } from "lucide-react";
 import { supabase, CATEGORIES, type Category } from "@/lib/supabase";
 import { useAuth, canViewCategory } from "@/lib/auth";
@@ -193,6 +194,12 @@ function HomePage() {
     setFilterCats((fs) => (fs.includes(c) ? fs.filter((x) => x !== c) : [...fs, c]));
 
   const exportDashboard = () => {
+    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
+    doc.setFontSize(16);
+    doc.text("PRISM Dashboard Report", 40, 36);
+    doc.setFontSize(10);
+    doc.text(`Generated ${new Date().toLocaleString()}`, 40, 56);
+
     const summaryRows = [
       ["Metric", "Value"],
       ["Total Projects", counts.TOTAL],
@@ -201,21 +208,36 @@ function HomePage() {
       ["FY Pending Grants", formatINR(fyPending.total)],
       ["Multi-centre Projects", multiCentre.length],
     ];
+
+    autoTable(doc, {
+      startY: 76,
+      head: [summaryRows[0]],
+      body: summaryRows.slice(1),
+      styles: { fontSize: 9, cellPadding: 4 },
+      headStyles: { fillColor: [30, 58, 95], textColor: 255 },
+    });
+
     const projectRows = [
-      ["Category", "Title", "PI", "Institute", "File No.", "e-Office No.", "IRIS ID", "State", "Project State", "Grant Pending", "Report Status"],
+      ["Category", "Title", "PI", "Institute", "File No.", "State", "Project State", "Grant Pending", "Report Status"],
       ...baseProjects.map((p) => {
         const ys = yearlyByProject.get(p.id) || [];
         const cur = ys.find((y) => y.report_status) || ys[0];
         const pendingAmount = fyPending.items.find((item) => item.project.id === p.id)?.pending || 0;
-        return [p.category, p.title, p.pi_name || "—", p.institute || "—", p.file_number || "—", p.eoffice_number || "—", p.iris_id || "—", p.state || "—", p.project_state || "—", formatINR(pendingAmount), cur?.report_status || "—"];
+        return [p.category, p.title, p.pi_name || "—", p.institute || "—", p.file_number || "—", p.state || "—", p.project_state || "—", formatINR(pendingAmount), cur?.report_status || "—"];
       }),
     ];
 
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(summaryRows), "Dashboard Summary");
-    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet(projectRows), "Projects");
-    XLSX.writeFile(workbook, "prism-dashboard-export.xlsx");
-    toast.success("Dashboard exported successfully.");
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 18,
+      head: [projectRows[0]],
+      body: projectRows.slice(1),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [46, 117, 182], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 247, 250] },
+    });
+
+    doc.save("prism-dashboard-report.pdf");
+    toast.success("Dashboard exported as PDF.");
   };
 
   return (
