@@ -38,6 +38,7 @@ export interface Project {
   date_of_completion: string | null;
   institute_address: string | null;
   state: string | null;
+  region: string | null;
   outcomes_publications: string | null;
   current_status_note: string | null;
   co_pi: string | null;
@@ -47,6 +48,20 @@ export interface Project {
   total_amount_released: number | null;
   is_multicentre: boolean | null;
   centre_details: string | null;
+  proposal_type: string | null;
+  project_id: string | null;
+  priority_disease_categorization: string | null;
+  aetiology_pathogenesis_sub_condition: string | null;
+  research_phase_modalities: string | null;
+  details: string | null;
+  objectives: string | null;
+  expected_outcome_deliverables: string | null;
+  disease_condition: string | null;
+  details_of_expected_outcome: string | null;
+  equipment_approved: string | null;
+  project_stage: string | null;
+  po: string | null;
+  project_year: string | null;
 }
 
 export interface YearlyStatus {

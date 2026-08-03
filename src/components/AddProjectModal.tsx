@@ -29,6 +29,7 @@ export function AddProjectModal({ category, onClose, onCreated }: Props) {
     institute_address: "",
     department: "",
     state: "",
+    region: "",
     start_date: "",
     date_of_completion: "",
     duration_years: 1,
@@ -41,6 +42,20 @@ export function AddProjectModal({ category, onClose, onCreated }: Props) {
     outcomes_publications: "",
     is_multicentre: false,
     centre_details: "",
+    proposal_type: "",
+    project_id: "",
+    priority_disease_categorization: "",
+    aetiology_pathogenesis_sub_condition: "",
+    research_phase_modalities: "",
+    details: "",
+    objectives: "",
+    expected_outcome_deliverables: "",
+    disease_condition: "",
+    details_of_expected_outcome: "",
+    equipment_approved: "",
+    project_stage: "",
+    po: "",
+    project_year: "",
   });
 
   type YearRow = { year_number: number; financial_year: string; sanctioned_amount: number; amount_released: number; grant_released: boolean };
@@ -107,6 +122,21 @@ export function AddProjectModal({ category, onClose, onCreated }: Props) {
         outcomes_publications: form.outcomes_publications.trim() || null,
         is_multicentre: !!form.is_multicentre,
         centre_details: form.centre_details.trim() || null,
+        region: form.region.trim() || null,
+        proposal_type: form.proposal_type.trim() || null,
+        project_id: form.project_id.trim() || null,
+        priority_disease_categorization: form.priority_disease_categorization.trim() || null,
+        aetiology_pathogenesis_sub_condition: form.aetiology_pathogenesis_sub_condition.trim() || null,
+        research_phase_modalities: form.research_phase_modalities.trim() || null,
+        details: form.details.trim() || null,
+        objectives: form.objectives.trim() || null,
+        expected_outcome_deliverables: form.expected_outcome_deliverables.trim() || null,
+        disease_condition: form.disease_condition.trim() || null,
+        details_of_expected_outcome: form.details_of_expected_outcome.trim() || null,
+        equipment_approved: form.equipment_approved.trim() || null,
+        project_stage: form.project_stage.trim() || null,
+        po: form.po.trim() || null,
+        project_year: form.project_year.trim() || null,
         created_by: user?.id || null,
       };
 
@@ -217,6 +247,15 @@ export function AddProjectModal({ category, onClose, onCreated }: Props) {
             <Field label="Date of Completion"><input className={inp} type="date" value={form.date_of_completion} onChange={(e) => update("date_of_completion", e.target.value)} /></Field>
             <Field label="Duration (Years) *"><input className={inp} type="number" min={1} max={10} value={form.duration_years} onChange={(e) => update("duration_years", Number(e.target.value))} /></Field>
             <Field label="Broad Subject Area"><input className={inp} value={form.broad_subject_area} onChange={(e) => update("broad_subject_area", e.target.value)} /></Field>
+            <Field label="Region"><input className={inp} value={form.region} onChange={(e) => update("region", e.target.value)} /></Field>
+            <Field label="Proposal Type"><input className={inp} value={form.proposal_type} onChange={(e) => update("proposal_type", e.target.value)} /></Field>
+            <Field label="Project ID"><input className={inp} value={form.project_id} onChange={(e) => update("project_id", e.target.value)} /></Field>
+            <Field label="Priority Disease Categorization"><input className={inp} value={form.priority_disease_categorization} onChange={(e) => update("priority_disease_categorization", e.target.value)} /></Field>
+            <Field label="Aetiology / Pathogenesis / Sub-condition"><input className={inp} value={form.aetiology_pathogenesis_sub_condition} onChange={(e) => update("aetiology_pathogenesis_sub_condition", e.target.value)} /></Field>
+            <Field label="Research Phase / Modalities"><input className={inp} value={form.research_phase_modalities} onChange={(e) => update("research_phase_modalities", e.target.value)} /></Field>
+            <Field label="Project Stage"><input className={inp} value={form.project_stage} onChange={(e) => update("project_stage", e.target.value)} /></Field>
+            <Field label="PO"><input className={inp} value={form.po} onChange={(e) => update("po", e.target.value)} /></Field>
+            <Field label="Project Year"><input className={inp} value={form.project_year} onChange={(e) => update("project_year", e.target.value)} /></Field>
           </Section>
 
           <Section title="Financial">
@@ -257,6 +296,12 @@ export function AddProjectModal({ category, onClose, onCreated }: Props) {
             <Field label="Current Status / Notes" full><textarea className={inp} rows={2} value={form.current_status_note} onChange={(e) => update("current_status_note", e.target.value)} /></Field>
             <Field label="Remarks" full><textarea className={inp} rows={2} value={form.remarks} onChange={(e) => update("remarks", e.target.value)} /></Field>
             <Field label="Outcomes / Publications" full><textarea className={inp} rows={2} value={form.outcomes_publications} onChange={(e) => update("outcomes_publications", e.target.value)} /></Field>
+            <Field label="Details" full><textarea className={inp} rows={2} value={form.details} onChange={(e) => update("details", e.target.value)} /></Field>
+            <Field label="Objectives" full><textarea className={inp} rows={2} value={form.objectives} onChange={(e) => update("objectives", e.target.value)} /></Field>
+            <Field label="Expected Outcome / Deliverables" full><textarea className={inp} rows={2} value={form.expected_outcome_deliverables} onChange={(e) => update("expected_outcome_deliverables", e.target.value)} /></Field>
+            <Field label="Disease / Condition" full><textarea className={inp} rows={2} value={form.disease_condition} onChange={(e) => update("disease_condition", e.target.value)} /></Field>
+            <Field label="Details of Expected Outcome" full><textarea className={inp} rows={2} value={form.details_of_expected_outcome} onChange={(e) => update("details_of_expected_outcome", e.target.value)} /></Field>
+            <Field label="Equipment Approved" full><textarea className={inp} rows={2} value={form.equipment_approved} onChange={(e) => update("equipment_approved", e.target.value)} /></Field>
           </Section>
         </div>
 

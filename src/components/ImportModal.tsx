@@ -88,10 +88,25 @@ function sanitizeProjectRow(d: any, category: Category): any {
     institute: strOrNull(d.institute) ?? strOrNull(d.institute_address) ?? "Unknown Institute",
     institute_address: strOrNull(d.institute_address),
     state: strOrNull(d.state),
+    region: strOrNull(d.region),
     broad_subject_area: strOrNull(d.broad_subject_area),
     remarks: strOrNull(d.remarks),
     current_status_note: strOrNull(d.current_status_note),
     outcomes_publications: strOrNull(d.outcomes_publications),
+    proposal_type: strOrNull(d.proposal_type),
+    project_id: strOrNull(d.project_id),
+    priority_disease_categorization: strOrNull(d.priority_disease_categorization),
+    aetiology_pathogenesis_sub_condition: strOrNull(d.aetiology_pathogenesis_sub_condition),
+    research_phase_modalities: strOrNull(d.research_phase_modalities),
+    details: strOrNull(d.details),
+    objectives: strOrNull(d.objectives),
+    expected_outcome_deliverables: strOrNull(d.expected_outcome_deliverables),
+    disease_condition: strOrNull(d.disease_condition),
+    details_of_expected_outcome: strOrNull(d.details_of_expected_outcome),
+    equipment_approved: strOrNull(d.equipment_approved),
+    project_stage: strOrNull(d.project_stage),
+    po: strOrNull(d.po),
+    project_year: strOrNull(d.project_year),
     start_date: dateOrNull(d.start_date),
     date_of_completion: dateOrNull(d.date_of_completion),
     duration_years: intOrNull(d.duration_years) ?? 0,
@@ -113,6 +128,7 @@ interface ParsedRow {
   reason: string;
   warnings: string[];
   data: any;
+  providedFields: string[];
   yearly: any[];
   budgets: any[];
 }
@@ -154,7 +170,22 @@ function canonicalField(header: string): string | null {
   if (/institute\s*address|pi\s*institute\s*address/.test(n)) return "institute_address";
   if (/^institute|institute\/department/.test(n)) return "institute";
   if (/^state$/.test(n)) return "state";
+  if (/^region$/.test(n)) return "region";
   if (/^city$/.test(n)) return "city";
+  if (/proposal\s*type/.test(n)) return "proposal_type";
+  if (/project\s*id/.test(n)) return "project_id";
+  if (/priority\s*disease/.test(n)) return "priority_disease_categorization";
+  if (/aetiology|pathogenesis|sub-condition/.test(n)) return "aetiology_pathogenesis_sub_condition";
+  if (/research\s*phase|modalit/.test(n)) return "research_phase_modalities";
+  if (/^details$/.test(n)) return "details";
+  if (/^objectives$/.test(n)) return "objectives";
+  if (/expected\s*outcome|deliverables/.test(n)) return "expected_outcome_deliverables";
+  if (/disease|condition/.test(n) && !/expected/.test(n)) return "disease_condition";
+  if (/details\s*of\s*expected\s*outcome/.test(n)) return "details_of_expected_outcome";
+  if (/equipment\s*approved/.test(n)) return "equipment_approved";
+  if (/project\s*stage/.test(n)) return "project_stage";
+  if (/^po$/.test(n)) return "po";
+  if (/project\s*year/.test(n)) return "project_year";
   if (/project\s*title|^title$/.test(n)) return "title";
   if (/date\s*of\s*start|start\s*date/.test(n)) return "start_date";
   if (/date\s*of\s*completion|date\s*of\s*end|completion\s*date|end\s*date/.test(n)) return "date_of_completion";
@@ -349,7 +380,7 @@ function parseRowFromObject(
   if (!hasContent) {
     return {
       sheet, rowIndex, raw: row, status: "error", reason: "No title/PI/file ref",
-      warnings: [], data: {}, yearly: [], budgets: [],
+      warnings: [], data: {}, providedFields: [], yearly: [], budgets: [],
     };
   }
 
@@ -374,7 +405,22 @@ function parseRowFromObject(
   data.institute_address = fieldVals.institute_address ? String(fieldVals.institute_address).trim() : null;
   if (!data.institute && data.institute_address) data.institute = data.institute_address;
   data.state = fieldVals.state ? String(fieldVals.state).trim() : null;
+  data.region = fieldVals.region ? String(fieldVals.region).trim() : null;
   data.broad_subject_area = fieldVals.broad_subject_area ? String(fieldVals.broad_subject_area).trim() : null;
+  data.proposal_type = fieldVals.proposal_type ? String(fieldVals.proposal_type).trim() : null;
+  data.project_id = fieldVals.project_id ? String(fieldVals.project_id).trim() : null;
+  data.priority_disease_categorization = fieldVals.priority_disease_categorization ? String(fieldVals.priority_disease_categorization).trim() : null;
+  data.aetiology_pathogenesis_sub_condition = fieldVals.aetiology_pathogenesis_sub_condition ? String(fieldVals.aetiology_pathogenesis_sub_condition).trim() : null;
+  data.research_phase_modalities = fieldVals.research_phase_modalities ? String(fieldVals.research_phase_modalities).trim() : null;
+  data.details = fieldVals.details ? String(fieldVals.details).trim() : null;
+  data.objectives = fieldVals.objectives ? String(fieldVals.objectives).trim() : null;
+  data.expected_outcome_deliverables = fieldVals.expected_outcome_deliverables ? String(fieldVals.expected_outcome_deliverables).trim() : null;
+  data.disease_condition = fieldVals.disease_condition ? String(fieldVals.disease_condition).trim() : null;
+  data.details_of_expected_outcome = fieldVals.details_of_expected_outcome ? String(fieldVals.details_of_expected_outcome).trim() : null;
+  data.equipment_approved = fieldVals.equipment_approved ? String(fieldVals.equipment_approved).trim() : null;
+  data.project_stage = fieldVals.project_stage ? String(fieldVals.project_stage).trim() : null;
+  data.po = fieldVals.po ? String(fieldVals.po).trim() : null;
+  data.project_year = fieldVals.project_year ? String(fieldVals.project_year).trim() : null;
   data.remarks = fieldVals.remarks ? String(fieldVals.remarks).trim() : null;
   data.current_status_note = fieldVals.current_status_note ? String(fieldVals.current_status_note).trim() : null;
   data.outcomes_publications = fieldVals.outcomes_publications ? String(fieldVals.outcomes_publications).trim() : null;
@@ -444,11 +490,21 @@ function parseRowFromObject(
     (data.iris_id && data.iris_id) ||
     `${category}-${sheet}-${rowIndex}`;
 
+  const providedFields = Array.from(new Set<string>(
+    headers.flatMap((header) => {
+      const f = canonicalField(header);
+      if (!f) return [];
+      const rawValue = row[header];
+      if (rawValue == null || String(rawValue).trim() === "") return [];
+      return [f];
+    })
+  ));
+
   return {
     sheet, rowIndex, raw: row,
     status: warnings.length ? "warning" : "valid",
     reason: warnings.join(", "),
-    warnings, data, yearly, budgets,
+    warnings, data, providedFields, yearly, budgets,
   };
 }
 
@@ -504,16 +560,17 @@ export function ImportModal({ category, onClose, onImported }: Props) {
 
   const doImport = async () => {
     setImporting(true);
-    let inserted = 0, skipped = 0;
+    let created = 0, updated = 0, skipped = 0;
     const failed: { row: any; reason: string }[] = [];
     try {
       const { data: existing, error: existingError } = await supabase
         .from("projects")
-        .select("category,e_file_number,file_number,eoffice_number,iris_id,title");
+        .select("id,category,e_file_number,file_number,eoffice_number,iris_id,title");
       if (existingError) throw existingError;
 
+      const existingProjects = (existing || []) as Array<Record<string, any>>;
       const existingIdentitySet = new Set<string>();
-      for (const project of existing || []) {
+      for (const project of existingProjects) {
         const keys = getProjectIdentityKeys(project, project.category as Category);
         keys.forEach((key) => existingIdentitySet.add(key));
       }
@@ -521,12 +578,45 @@ export function ImportModal({ category, onClose, onImported }: Props) {
       const toImport = parsed.filter((r) => r.status !== "error");
       for (const r of toImport) {
         const candidateKeys = getProjectIdentityKeys(r.data, category);
-        if (candidateKeys.length > 0 && candidateKeys.some((key) => existingIdentitySet.has(key))) {
-          skipped++;
+        const matchingProject = candidateKeys.length > 0
+          ? existingProjects.find((project: Record<string, any>) => {
+              const projectKeys = getProjectIdentityKeys(project, project.category as Category);
+              return projectKeys.some((key) => candidateKeys.includes(key));
+            })
+          : null;
+
+        const sanitized = sanitizeProjectRow(r.data, r.data.category);
+        const updateFields = new Set<string>(r.providedFields);
+        if (r.providedFields.some((field) => ["file_number", "eoffice_number", "iris_id", "serial_number"].includes(field))) {
+          updateFields.add("e_file_number");
+        }
+
+        if (matchingProject) {
+          const updateData = Object.fromEntries(
+            Object.entries(sanitized).filter(([key]) => updateFields.has(key))
+          );
+          if (Object.keys(updateData).length === 0) {
+            skipped++;
+            continue;
+          }
+          try {
+            const { error } = await supabase.from("projects").update(updateData).eq("id", matchingProject.id);
+            if (error) {
+              console.error("[Import] projects update failed", {
+                code: (error as any)?.code, message: error?.message, details: (error as any)?.details,
+                hint: (error as any)?.hint, row: updateData,
+              });
+              failed.push({ row: r.raw, reason: error?.message || "projects update failed" });
+              continue;
+            }
+            updated++;
+          } catch (e: any) {
+            console.error("[Import] row update exception:", e, updateData);
+            failed.push({ row: r.raw, reason: e?.message || "Unknown error" });
+          }
           continue;
         }
 
-        const sanitized = sanitizeProjectRow(r.data, r.data.category);
         const insertData = { ...sanitized, created_by: user?.id || null };
 
         try {
@@ -591,7 +681,7 @@ export function ImportModal({ category, onClose, onImported }: Props) {
           } catch (e) { console.error("[Import] history exception:", e); }
 
           getProjectIdentityKeys(sanitized, category).forEach((key) => existingIdentitySet.add(key));
-          inserted++;
+          created++;
         } catch (e: any) {
           console.error("[Import] row exception:", e, insertData);
           failed.push({ row: r.raw, reason: e?.message || "Unknown error" });
@@ -600,9 +690,9 @@ export function ImportModal({ category, onClose, onImported }: Props) {
 
       if (failed.length) {
         console.warn("[Import] failed rows:", failed);
-        toast.warning(`${inserted} imported successfully. ${skipped} skipped (duplicate). ${failed.length} failed — check console.`);
+        toast.warning(`${created} created, ${updated} updated, ${skipped} skipped. ${failed.length} failed — check console.`);
       } else {
-        toast.success(`${inserted} imported successfully. ${skipped} skipped (duplicate).`);
+        toast.success(`${created} created, ${updated} updated, ${skipped} skipped.`);
       }
       onImported();
       reset();
