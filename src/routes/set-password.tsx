@@ -12,6 +12,7 @@ function SetPasswordPage() {
   const navigate = useNavigate();
   const search = useSearch({ from: "/set-password" });
   const { setPassword, verifyRecovery } = useAuth();
+  const flow = (search as { flow?: string }).flow === "invite" ? "invite" : "reset";
   const [password, setPasswordInput] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [loading, setLoading] = React.useState(false);
@@ -51,7 +52,7 @@ function SetPasswordPage() {
       <div className="w-full max-w-md bg-white rounded-xl shadow-2xl p-8">
         <div className="text-center mb-8">
           <h1 className="text-5xl font-extrabold text-[#1E3A5F] tracking-wider">PRISM</h1>
-          <p className="text-sm text-[#1E3A5F]/80 mt-2 font-medium">Set your password to continue</p>
+          <p className="text-sm text-[#1E3A5F]/80 mt-2 font-medium">{flow === "invite" ? "Set your password to activate your account" : "Set your password to continue"}</p>
         </div>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>

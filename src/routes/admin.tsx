@@ -65,19 +65,31 @@ function AdminPage() {
   const createUser = async () => {
     if (!email || !name) { toast.error("Name and email required"); return; }
     const tempPwd = Math.random().toString(36).slice(2) + "Aa1!";
-    const { data, error } = await supabase.auth.signUp({ email, password: tempPwd });
+    const inviteRedirect = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=invite` : undefined;
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password: tempPwd,
+      options: {
+        data: {
+          name,
+          role,
+          category_access: role === "manager" ? catAccess : [],
+        },
+        emailRedirectTo: inviteRedirect,
+      },
+    });
     if (error) { toast.error(error.message); return; }
     if (data.user) {
-      await supabase.from("users").insert({
+      await supabase.from("users").upsert({
         id: data.user.id, email, name, role,
         category_access: role === "manager" ? catAccess : null,
-      });
-      const resetResult = await supabase.auth.resetPasswordForEmail(email);
+      }, { onConflict: "id" });
+      const resetResult = await supabase.auth.resetPasswordForEmail(email, inviteRedirect ? { redirectTo: inviteRedirect } : undefined);
       if (resetResult.error) {
         toast.error(`User created but password email failed: ${resetResult.error.message}`);
       }
     }
-    toast.success(`Invitation sent to ${email}. Please ask the user to confirm their email and set a password.`);
+    toast.success(`Invitation sent to ${email}. The user will be taken to the password setup page first.`);
     setName(""); setEmail(""); setCatAccess([]);
     load();
   };

@@ -30,15 +30,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     const sUser = sess.session.user;
+    const meta = (sUser.user_metadata || {}) as Record<string, any>;
     const { data } = await supabase.from("users").select("*").eq("id", sUser.id).maybeSingle();
-    if (data) setUser(data as AppUser);
-    else {
+    if (data) {
+      const profile = data as AppUser;
+      setUser({
+        ...profile,
+        name: profile.name || meta.name || meta.full_name || sUser.email || "User",
+        role: (profile.role || meta.role || "guest") as UserRole,
+        category_access: profile.category_access ?? (Array.isArray(meta.category_access) ? meta.category_access : []),
+      });
+    } else {
+      const categoryAccess = Array.isArray(meta.category_access)
+        ? meta.category_access
+        : (typeof meta.category_access === "string" ? meta.category_access.split(",").map((c: string) => c.trim()).filter(Boolean) : []);
       setUser({
         id: sUser.id,
         email: sUser.email || "",
-        name: sUser.user_metadata?.name || sUser.email || "User",
-        role: "guest" as UserRole,
-        category_access: [],
+        name: meta.name || meta.full_name || sUser.email || "User",
+        role: (meta.role as UserRole | undefined) || "guest",
+        category_access: categoryAccess,
       });
     }
   }, []);
