@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { jsPDF } from "jspdf";
 import autoTable from "jspdf-autotable";
+import html2canvas from "html2canvas";
 import { ChevronDown, Search as SearchIcon, AlertTriangle, X } from "lucide-react";
 import { supabase, CATEGORIES, type Category } from "@/lib/supabase";
 import { useAuth, canViewCategory } from "@/lib/auth";
@@ -36,6 +37,7 @@ function HomePage() {
   const [filterState, setFilterState] = useState<string>("");
   const [filterGrant, setFilterGrant] = useState<string>("");
   const [filterReport, setFilterReport] = useState<string>("");
+  const dashboardRef = useRef<HTMLDivElement>(null);
 
   const [activeOnly, setActiveOnly] = useState<boolean>(() => {
     if (typeof window === "undefined") return true;
@@ -193,51 +195,45 @@ function HomePage() {
   const toggleCat = (c: Category) =>
     setFilterCats((fs) => (fs.includes(c) ? fs.filter((x) => x !== c) : [...fs, c]));
 
-  const exportDashboard = () => {
-    const doc = new jsPDF({ orientation: "landscape", unit: "pt", format: "a4" });
-    doc.setFontSize(16);
-    doc.text("PRISM Dashboard Report", 40, 36);
-    doc.setFontSize(10);
-    doc.text(`Generated ${new Date().toLocaleString()}`, 40, 56);
+  const exportDashboard = async () => {
+    if (!dashboardRef.current) {
+      toast.error("Dashboard content is not ready for export.");
+      return;
+    }
 
-    const summaryRows = [
-      ["Metric", "Value"],
-      ["Total Projects", counts.TOTAL],
-      ["Active Projects", baseProjects.filter((p) => p.project_state === "Active").length],
-      ["Action Required", actionRequiredIds.size],
-      ["FY Pending Grants", formatINR(fyPending.total)],
-      ["Multi-centre Projects", multiCentre.length],
-    ];
+    try {
+      const canvas = await html2canvas(dashboardRef.current, {
+        scale: 2,
+        useCORS: true,
+        backgroundColor: "#ffffff",
+        logging: false,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF({ orientation: "portrait", unit: "pt", format: "a4" });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 24;
+      const imgWidth = pageWidth - margin * 2;
+      const imgHeight = (imgWidth / canvas.width) * canvas.height;
 
-    autoTable(doc, {
-      startY: 76,
-      head: [summaryRows[0]],
-      body: summaryRows.slice(1),
-      styles: { fontSize: 9, cellPadding: 4 },
-      headStyles: { fillColor: [30, 58, 95], textColor: 255 },
-    });
+      let y = margin;
+      let remainingHeight = imgHeight;
+      let pageIndex = 0;
+      while (remainingHeight > 0) {
+        if (pageIndex > 0) pdf.addPage();
+        const currentHeight = Math.min(remainingHeight, pageHeight - margin * 2);
+        pdf.addImage(imgData, "PNG", margin, y, imgWidth, currentHeight, undefined, "FAST");
+        remainingHeight -= currentHeight;
+        y = margin - currentHeight;
+        pageIndex += 1;
+      }
 
-    const projectRows = [
-      ["Category", "Title", "PI", "Institute", "File No.", "State", "Project State", "Grant Pending", "Report Status"],
-      ...baseProjects.map((p) => {
-        const ys = yearlyByProject.get(p.id) || [];
-        const cur = ys.find((y) => y.report_status) || ys[0];
-        const pendingAmount = fyPending.items.find((item) => item.project.id === p.id)?.pending || 0;
-        return [p.category, p.title, p.pi_name || "—", p.institute || "—", p.file_number || "—", p.state || "—", p.project_state || "—", formatINR(pendingAmount), cur?.report_status || "—"];
-      }),
-    ];
-
-    autoTable(doc, {
-      startY: (doc as any).lastAutoTable.finalY + 18,
-      head: [projectRows[0]],
-      body: projectRows.slice(1),
-      styles: { fontSize: 8, cellPadding: 3 },
-      headStyles: { fillColor: [46, 117, 182], textColor: 255 },
-      alternateRowStyles: { fillColor: [245, 247, 250] },
-    });
-
-    doc.save("prism-dashboard-report.pdf");
-    toast.success("Dashboard exported as PDF.");
+      pdf.save("prism-dashboard-report.pdf");
+      toast.success("Dashboard exported as PDF snapshot.");
+    } catch (error) {
+      console.error("Dashboard export failed", error);
+      toast.error("Unable to export dashboard snapshot.");
+    }
   };
 
   return (
@@ -271,7 +267,7 @@ function HomePage() {
       </div>
 
       {/* DASHBOARD */}
-      <div className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto">
+      <div ref={dashboardRef} className="px-4 sm:px-6 lg:px-8 py-10 max-w-7xl mx-auto bg-background">
         <div className="flex justify-between items-center mb-6 gap-3 flex-wrap">
           <h2 className="text-3xl font-bold text-[var(--navy)] dark:text-white">PRISM Dashboard</h2>
           <div className="flex items-center gap-3 flex-wrap">

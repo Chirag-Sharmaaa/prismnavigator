@@ -92,7 +92,7 @@ export function Sidebar() {
             <div className="text-xs">
               <div className="font-semibold truncate">{isGuest ? "Guest" : user?.name || "—"}</div>
               <div className="opacity-70 capitalize">
-                {isGuest ? "Read-only" : user?.role?.replace("_", " ") || ""}
+                {isGuest ? "Read-only" : (user?.role ? user.role.replace("_", " ") : "")}
               </div>
             </div>
             {(user || isGuest) && (

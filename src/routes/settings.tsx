@@ -44,7 +44,14 @@ function SettingsPage() {
     if (!user) return;
     const trimmed = name.trim();
     const { error } = await supabase.from("users").update({ name: trimmed }).eq("id", user.id);
-    if (error) toast.error(error.message); else { toast.success("Saved"); await refresh(); }
+    if (error) {
+      toast.error(error.message);
+      return;
+    }
+    await supabase.auth.updateUser({ data: { name: trimmed } });
+    setName(trimmed);
+    toast.success("Saved");
+    await refresh();
   };
 
   const updatePwd = async () => {

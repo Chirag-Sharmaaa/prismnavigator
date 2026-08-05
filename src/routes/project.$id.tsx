@@ -270,6 +270,26 @@ function ProjectPage() {
         </div>
       </Card>
 
+      {/* SG / Research Details */}
+      <Card title="SG / Research Details">
+        <div className="grid md:grid-cols-2 gap-x-6 gap-y-3 text-sm">
+          <EditableProjectField label="Proposal Type" value={project.proposal_type} editMode={editMode && editable} onSave={(v) => updateProject({ proposal_type: v || null })} />
+          <EditableProjectField label="Project ID" value={project.project_id} editMode={editMode && editable} onSave={(v) => updateProject({ project_id: v || null })} />
+          <EditableProjectField label="Priority Disease Categorization" value={project.priority_disease_categorization} editMode={editMode && editable} onSave={(v) => updateProject({ priority_disease_categorization: v || null })} />
+          <EditableProjectField label="Aetiology / Pathogenesis / Sub-condition" value={project.aetiology_pathogenesis_sub_condition} editMode={editMode && editable} onSave={(v) => updateProject({ aetiology_pathogenesis_sub_condition: v || null })} />
+          <EditableProjectField label="Research Phase / Modalities" value={project.research_phase_modalities} editMode={editMode && editable} onSave={(v) => updateProject({ research_phase_modalities: v || null })} />
+          <EditableProjectField label="Project Stage" value={project.project_stage} editMode={editMode && editable} onSave={(v) => updateProject({ project_stage: v || null })} />
+          <EditableProjectField label="PO" value={project.po} editMode={editMode && editable} onSave={(v) => updateProject({ po: v || null })} />
+          <EditableProjectField label="Project Year" value={project.project_year} editMode={editMode && editable} onSave={(v) => updateProject({ project_year: v || null })} />
+          <EditableProjectField label="Details" value={project.details} editMode={editMode && editable} onSave={(v) => updateProject({ details: v || null })} textarea />
+          <EditableProjectField label="Objectives" value={project.objectives} editMode={editMode && editable} onSave={(v) => updateProject({ objectives: v || null })} textarea />
+          <EditableProjectField label="Expected Outcome / Deliverables" value={project.expected_outcome_deliverables} editMode={editMode && editable} onSave={(v) => updateProject({ expected_outcome_deliverables: v || null })} textarea />
+          <EditableProjectField label="Disease / Condition" value={project.disease_condition} editMode={editMode && editable} onSave={(v) => updateProject({ disease_condition: v || null })} textarea />
+          <EditableProjectField label="Details of Expected Outcome" value={project.details_of_expected_outcome} editMode={editMode && editable} onSave={(v) => updateProject({ details_of_expected_outcome: v || null })} textarea />
+          <EditableProjectField label="Equipment Approved" value={project.equipment_approved} editMode={editMode && editable} onSave={(v) => updateProject({ equipment_approved: v || null })} textarea />
+        </div>
+      </Card>
+
       {/* Financial Summary */}
       <Card title="Financial Summary">
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">

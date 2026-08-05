@@ -64,41 +64,66 @@ function AdminPage() {
 
   const createUser = async () => {
     if (!email || !name) { toast.error("Name and email required"); return; }
-    const tempPwd = Math.random().toString(36).slice(2) + "Aa1!";
     const inviteRedirect = typeof window !== "undefined" ? `${window.location.origin}/set-password?flow=invite` : undefined;
+    const metadata = {
+      name,
+      role,
+      category_access: role === "manager" ? catAccess : [],
+      must_set_password: true,
+    };
+
     const { data, error } = await supabase.auth.signUp({
       email,
-      password: tempPwd,
+      password: Math.random().toString(36).slice(2) + "Aa1!",
       options: {
-        data: {
-          name,
-          role,
-          category_access: role === "manager" ? catAccess : [],
-        },
+        data: metadata,
         emailRedirectTo: inviteRedirect,
       },
     });
     if (error) { toast.error(error.message); return; }
-    if (data.user) {
+
+    const authUserId = data?.user?.id || (await supabase.auth.getUser()).data.user?.id;
+    if (authUserId) {
       const profilePayload = {
-        id: data.user.id,
+        id: authUserId,
         email,
         name,
         role,
         category_access: role === "manager" ? catAccess : [],
+        must_set_password: true,
       };
-      const { error: profileError } = await supabase.from("users").upsert(profilePayload, { onConflict: "id" });
+
+      let profileError: any = null;
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const { error: insertError } = await supabase.from("users").upsert(profilePayload, { onConflict: "id" });
+        if (!insertError) {
+          profileError = null;
+          break;
+        }
+        profileError = insertError;
+        await new Promise((resolve) => setTimeout(resolve, 800));
+      }
+
       if (profileError) {
         toast.error(`User created in auth but profile save failed: ${profileError.message}`);
       } else {
         setUsers((prev) => [{ ...(profilePayload as AppUser), created_at: new Date().toISOString() }, ...prev]);
       }
-      const resetResult = await supabase.auth.resetPasswordForEmail(email, inviteRedirect ? { redirectTo: inviteRedirect } : undefined);
-      if (resetResult.error) {
-        toast.error(`User created but password email failed: ${resetResult.error.message}`);
+
+      await supabase.auth.updateUser({ data: metadata });
+      const inviteResult = await supabase.auth.signInWithOtp({
+        email,
+        options: {
+          emailRedirectTo: inviteRedirect,
+          shouldCreateUser: false,
+        },
+      });
+      if (inviteResult.error) {
+        toast.error(`User created but invitation email failed: ${inviteResult.error.message}`);
       }
     }
-    toast.success(`Invitation sent to ${email}. The user will be taken to the password setup page first.`);
+
+    toast.success(`Invitation sent to ${email}. The user will be asked to create a password before accessing PRISM.`);
     setName(""); setEmail(""); setCatAccess([]);
     load();
   };

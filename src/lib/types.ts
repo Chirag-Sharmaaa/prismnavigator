@@ -8,6 +8,7 @@ export interface AppUser {
   name: string;
   role: UserRole;
   category_access: string[] | null;
+  must_set_password?: boolean | null;
   created_at?: string;
 }
 

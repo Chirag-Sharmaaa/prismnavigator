@@ -44,6 +44,20 @@ type ExportFieldKey =
   | "current_status_note"
   | "remarks"
   | "outcomes_publications"
+  | "proposal_type"
+  | "project_id"
+  | "priority_disease_categorization"
+  | "aetiology_pathogenesis_sub_condition"
+  | "research_phase_modalities"
+  | "details"
+  | "objectives"
+  | "expected_outcome_deliverables"
+  | "disease_condition"
+  | "details_of_expected_outcome"
+  | "equipment_approved"
+  | "project_stage"
+  | "po"
+  | "project_year"
   | "grant_released"
   | "report_status"
   | "financial_year"
@@ -71,6 +85,20 @@ const EXPORT_FIELDS: Array<{ key: ExportFieldKey; label: string }> = [
   { key: "current_status_note", label: "Current Status Note" },
   { key: "remarks", label: "Remarks" },
   { key: "outcomes_publications", label: "Outcomes / Publications" },
+  { key: "proposal_type", label: "Proposal Type" },
+  { key: "project_id", label: "Project ID" },
+  { key: "priority_disease_categorization", label: "Priority Disease Categorization" },
+  { key: "aetiology_pathogenesis_sub_condition", label: "Aetiology / Pathogenesis / Sub-condition" },
+  { key: "research_phase_modalities", label: "Research Phase / Modalities" },
+  { key: "details", label: "Details" },
+  { key: "objectives", label: "Objectives" },
+  { key: "expected_outcome_deliverables", label: "Expected Outcome / Deliverables" },
+  { key: "disease_condition", label: "Disease / Condition" },
+  { key: "details_of_expected_outcome", label: "Details of Expected Outcome" },
+  { key: "equipment_approved", label: "Equipment Approved" },
+  { key: "project_stage", label: "Project Stage" },
+  { key: "po", label: "PO" },
+  { key: "project_year", label: "Project Year" },
   { key: "grant_released", label: "Current Grant Released" },
   { key: "report_status", label: "Current Report Status" },
   { key: "financial_year", label: "Current Financial Year" },
@@ -271,6 +299,20 @@ function CategoryPage() {
       current_status_note: p.current_status_note || "—",
       remarks: p.remarks || "—",
       outcomes_publications: p.outcomes_publications || "—",
+      proposal_type: p.proposal_type || "—",
+      project_id: p.project_id || "—",
+      priority_disease_categorization: p.priority_disease_categorization || "—",
+      aetiology_pathogenesis_sub_condition: p.aetiology_pathogenesis_sub_condition || "—",
+      research_phase_modalities: p.research_phase_modalities || "—",
+      details: p.details || "—",
+      objectives: p.objectives || "—",
+      expected_outcome_deliverables: p.expected_outcome_deliverables || "—",
+      disease_condition: p.disease_condition || "—",
+      details_of_expected_outcome: p.details_of_expected_outcome || "—",
+      equipment_approved: p.equipment_approved || "—",
+      project_stage: p.project_stage || "—",
+      po: p.po || "—",
+      project_year: p.project_year || "—",
       grant_released: cur ? (cur.grant_released ? "Yes" : "No") : "—",
       report_status: cur?.report_status || "—",
       financial_year: cur?.financial_year || "—",

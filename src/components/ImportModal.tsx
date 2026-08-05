@@ -74,9 +74,9 @@ function sanitizeProjectRow(d: any, category: Category): any {
   };
   return {
     category: cat,
-    title: strOrNull(d.title) || "Untitled Project",
+    title: strOrNull(d.title),
     e_file_number: buildImportProjectKey(d, cat),
-    pi_name: strOrNull(d.pi_name) || "Unknown PI",
+    pi_name: strOrNull(d.pi_name),
     serial_number: strOrNull(d.serial_number),
     file_number: strOrNull(d.file_number),
     eoffice_number: strOrNull(d.eoffice_number),
@@ -85,7 +85,7 @@ function sanitizeProjectRow(d: any, category: Category): any {
     contact_number: strOrNull(d.contact_number),
     email_id: strOrNull(d.email_id),
     department: strOrNull(d.department),
-    institute: strOrNull(d.institute) ?? strOrNull(d.institute_address) ?? "Unknown Institute",
+    institute: strOrNull(d.institute) ?? strOrNull(d.institute_address),
     institute_address: strOrNull(d.institute_address),
     state: strOrNull(d.state),
     region: strOrNull(d.region),
@@ -109,7 +109,7 @@ function sanitizeProjectRow(d: any, category: Category): any {
     project_year: strOrNull(d.project_year),
     start_date: dateOrNull(d.start_date),
     date_of_completion: dateOrNull(d.date_of_completion),
-    duration_years: intOrNull(d.duration_years) ?? 0,
+    duration_years: intOrNull(d.duration_years) ?? null,
     project_state: strOrNull(d.project_state) || "Active",
     total_sanctioned_amount: numOrNull(d.total_sanctioned_amount) ?? 0,
     total_amount_released: numOrNull(d.total_amount_released),
@@ -175,7 +175,7 @@ function canonicalField(header: string): string | null {
   if (/proposal\s*type/.test(n)) return "proposal_type";
   if (/project\s*id/.test(n)) return "project_id";
   if (/priority\s*disease/.test(n)) return "priority_disease_categorization";
-  if (/aetiology|pathogenesis|sub-condition/.test(n)) return "aetiology_pathogenesis_sub_condition";
+  if (/aetiology|pathogenesis|sub[-\s]?condition|subcondition/.test(n)) return "aetiology_pathogenesis_sub_condition";
   if (/research\s*phase|modalit/.test(n)) return "research_phase_modalities";
   if (/^details$/.test(n)) return "details";
   if (/^objectives$/.test(n)) return "objectives";
@@ -184,7 +184,7 @@ function canonicalField(header: string): string | null {
   if (/details\s*of\s*expected\s*outcome/.test(n)) return "details_of_expected_outcome";
   if (/equipment\s*approved/.test(n)) return "equipment_approved";
   if (/project\s*stage/.test(n)) return "project_stage";
-  if (/^po$/.test(n)) return "po";
+  if (/^po$|^po\s*name/.test(n)) return "po";
   if (/project\s*year/.test(n)) return "project_year";
   if (/project\s*title|^title$/.test(n)) return "title";
   if (/date\s*of\s*start|start\s*date/.test(n)) return "start_date";
@@ -374,12 +374,13 @@ function parseRowFromObject(
   }
   if (!title || String(title).trim() === "") { title = `Untitled Project ${rowIndex}`; warnings.push("Title defaulted"); }
 
-  // Only require some signal: real title, real PI, or any file ref
-  const hasRef = fieldVals.eoffice_number || fieldVals.file_number || fieldVals.iris_id;
-  const hasContent = pi !== "Unknown PI" || hasRef || (fieldVals.title && String(fieldVals.title).trim().length > 5);
+  const hasContent = headers.some((header) => {
+    const value = row[header];
+    return value != null && String(value).trim() !== "";
+  });
   if (!hasContent) {
     return {
-      sheet, rowIndex, raw: row, status: "error", reason: "No title/PI/file ref",
+      sheet, rowIndex, raw: row, status: "error", reason: "No importable values",
       warnings: [], data: {}, providedFields: [], yearly: [], budgets: [],
     };
   }
@@ -565,18 +566,14 @@ export function ImportModal({ category, onClose, onImported }: Props) {
     try {
       const { data: existing, error: existingError } = await supabase
         .from("projects")
-        .select("id,category,e_file_number,file_number,eoffice_number,iris_id,title");
+        .select("id,category,e_file_number,file_number,eoffice_number,iris_id,title,project_state,start_date,duration_years,total_sanctioned_amount,total_amount_released,pi_name,institute,state,region,proposal_type,project_id,priority_disease_categorization,aetiology_pathogenesis_sub_condition,research_phase_modalities,details,objectives,expected_outcome_deliverables,disease_condition,details_of_expected_outcome,equipment_approved,project_stage,po,project_year");
       if (existingError) throw existingError;
 
       const existingProjects = (existing || []) as Array<Record<string, any>>;
-      const existingIdentitySet = new Set<string>();
-      for (const project of existingProjects) {
-        const keys = getProjectIdentityKeys(project, project.category as Category);
-        keys.forEach((key) => existingIdentitySet.add(key));
-      }
-
       const toImport = parsed.filter((r) => r.status !== "error");
+
       for (const r of toImport) {
+        const sanitized = sanitizeProjectRow(r.data, category);
         const candidateKeys = getProjectIdentityKeys(r.data, category);
         const matchingProject = candidateKeys.length > 0
           ? existingProjects.find((project: Record<string, any>) => {
@@ -585,34 +582,46 @@ export function ImportModal({ category, onClose, onImported }: Props) {
             })
           : null;
 
-        const sanitized = sanitizeProjectRow(r.data, r.data.category);
-        const updateFields = new Set<string>(r.providedFields);
-        if (r.providedFields.some((field) => ["file_number", "eoffice_number", "iris_id", "serial_number"].includes(field))) {
-          updateFields.add("e_file_number");
-        }
-
         if (matchingProject) {
-          const updateData = Object.fromEntries(
-            Object.entries(sanitized).filter(([key]) => updateFields.has(key))
-          );
-          if (Object.keys(updateData).length === 0) {
+          const updatePayload: Record<string, any> = {};
+          const fieldNames = [
+            "title","pi_name","co_pi","contact_number","email_id","department","institute","institute_address","state","region",
+            "start_date","date_of_completion","duration_years","broad_subject_area","total_sanctioned_amount","total_amount_released",
+            "current_status_note","remarks","outcomes_publications","project_state","is_multicentre","centre_details",
+            "proposal_type","project_id","priority_disease_categorization","aetiology_pathogenesis_sub_condition","research_phase_modalities","details",
+            "objectives","expected_outcome_deliverables","disease_condition","details_of_expected_outcome","equipment_approved","project_stage","po","project_year"
+          ];
+
+          for (const field of fieldNames) {
+            const candidate = (sanitized as Record<string, any>)[field];
+            if (candidate === null || candidate === undefined) continue;
+            if (field === "title" && candidate === "Untitled Project") continue;
+            if (field === "pi_name" && candidate === "Unknown PI") continue;
+            const currentValue = (matchingProject as Record<string, any>)[field];
+            if (currentValue == null || currentValue === "" || currentValue === undefined) {
+              updatePayload[field] = candidate;
+            } else if (candidate !== null && candidate !== "" && candidate !== undefined && candidate !== currentValue) {
+              updatePayload[field] = candidate;
+            }
+          }
+
+          if (r.providedFields.includes("file_number") || r.providedFields.includes("eoffice_number") || r.providedFields.includes("iris_id") || r.providedFields.includes("serial_number")) {
+            const eFile = sanitized.e_file_number;
+            if (eFile && !matchingProject.e_file_number) updatePayload.e_file_number = eFile;
+          }
+
+          if (Object.keys(updatePayload).length === 0) {
             skipped++;
             continue;
           }
+
           try {
-            const { error } = await supabase.from("projects").update(updateData).eq("id", matchingProject.id);
-            if (error) {
-              console.error("[Import] projects update failed", {
-                code: (error as any)?.code, message: error?.message, details: (error as any)?.details,
-                hint: (error as any)?.hint, row: updateData,
-              });
-              failed.push({ row: r.raw, reason: error?.message || "projects update failed" });
-              continue;
-            }
+            const { error } = await supabase.from("projects").update(updatePayload).eq("id", matchingProject.id);
+            if (error) throw error;
             updated++;
           } catch (e: any) {
-            console.error("[Import] row update exception:", e, updateData);
-            failed.push({ row: r.raw, reason: e?.message || "Unknown error" });
+            console.error("[Import] projects update failed", e, updatePayload);
+            failed.push({ row: r.raw, reason: e?.message || "projects update failed" });
           }
           continue;
         }
@@ -620,13 +629,9 @@ export function ImportModal({ category, onClose, onImported }: Props) {
         const insertData = { ...sanitized, created_by: user?.id || null };
 
         try {
-          const { data: proj, error } = await supabase.from("projects")
-            .insert(insertData).select().single();
+          const { data: proj, error } = await supabase.from("projects").insert(insertData).select().single();
           if (error || !proj) {
-            console.error("[Import] projects insert failed", {
-              code: (error as any)?.code, message: error?.message, details: (error as any)?.details,
-              hint: (error as any)?.hint, row: insertData,
-            });
+            console.error("[Import] projects insert failed", { code: (error as any)?.code, message: error?.message, details: (error as any)?.details, hint: (error as any)?.hint, row: insertData });
             failed.push({ row: r.raw, reason: error?.message || "projects insert returned no row" });
             continue;
           }
@@ -649,9 +654,7 @@ export function ImportModal({ category, onClose, onImported }: Props) {
                 hold_amount_released: ey.hold_amount_released ?? null,
               };
               const { error: yErr } = await supabase.from("project_yearly_status").insert(yRow);
-              if (yErr) console.error("[Import] project_yearly_status insert failed", {
-                code: (yErr as any).code, message: yErr.message, row: yRow,
-              });
+              if (yErr) console.error("[Import] project_yearly_status insert failed", { code: (yErr as any).code, message: yErr.message, row: yRow });
             } catch (e) { console.error("[Import] yearly exception:", e); }
           }
 
@@ -665,9 +668,7 @@ export function ImportModal({ category, onClose, onImported }: Props) {
                   released_budget: Number(b.released_budget) || 0,
                 };
                 const { error: bErr } = await supabase.from("project_fy_budget").insert(bRow);
-                if (bErr) console.error("[Import] project_fy_budget insert failed", {
-                  code: (bErr as any).code, message: bErr.message, row: bRow,
-                });
+                if (bErr) console.error("[Import] project_fy_budget insert failed", { code: (bErr as any).code, message: bErr.message, row: bRow });
               } catch (e) { console.error("[Import] budget exception:", e); }
             }
           }
@@ -680,7 +681,6 @@ export function ImportModal({ category, onClose, onImported }: Props) {
             });
           } catch (e) { console.error("[Import] history exception:", e); }
 
-          getProjectIdentityKeys(sanitized, category).forEach((key) => existingIdentitySet.add(key));
           created++;
         } catch (e: any) {
           console.error("[Import] row exception:", e, insertData);
